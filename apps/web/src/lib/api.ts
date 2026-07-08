@@ -1,0 +1,61 @@
+import { logout } from '@/lib/auth';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+type ApiOptions = {
+  method?: string;
+  body?: unknown;
+  token?: string | null;
+};
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly statusCode: number,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+export class UnauthorizedError extends ApiError {
+  constructor(message = 'Oturum süren doldu. Lütfen tekrar giriş yap.') {
+    super(message, 401);
+    this.name = 'UnauthorizedError';
+  }
+}
+
+export async function apiRequest<T>(
+  path: string,
+  options: ApiOptions = {},
+): Promise<T> {
+  if (!API_URL) {
+    throw new Error('NEXT_PUBLIC_API_URL tanımlı değil.');
+  }
+
+  const response = await fetch(`${API_URL}${path}`, {
+    method: options.method ?? 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.token
+        ? {
+            Authorization: `Bearer ${options.token}`,
+          }
+        : {}),
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+
+  const data = await response.json().catch(() => null);
+
+  if (response.status === 401) {
+    logout('/login?expired=1');
+    throw new UnauthorizedError(data?.message);
+  }
+
+  if (!response.ok) {
+    throw new ApiError(data?.message ?? 'Bir hata oluştu.', response.status);
+  }
+
+  return data as T;
+}
