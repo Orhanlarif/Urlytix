@@ -3,12 +3,19 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { Link2, MousePointerClick, RefreshCw } from 'lucide-react';
 import { AppShell } from '@/components/layout/app-shell';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader } from '@/components/ui/card';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { ErrorBanner } from '@/components/ui/error-banner';
-import { createQrCodeDataUrl } from '@/lib/qr';
+import { Input } from '@/components/ui/input';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { MetricCard } from '@/components/ui/metric-card';
-import { SuccessBanner } from '@/components/ui/success-banner';
+import { PageHeader } from '@/components/ui/page-header';
+import { useToast } from '@/components/ui/toast';
+import { interpolate } from '@/i18n';
+import { useLanguage } from '@/i18n/language-provider';
 import { apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/auth';
 import { formatDate, formatDateTime, truncateText } from '@/lib/format';
@@ -18,6 +25,7 @@ import {
   getLinkStatusLabel,
   isLinkOperational,
 } from '@/lib/link-status';
+import { createQrCodeDataUrl } from '@/lib/qr';
 import type {
   CreateLinkResponse,
   DeleteLinkResponse,
@@ -28,29 +36,33 @@ import type {
 
 export default function LinksPage() {
   const router = useRouter();
+  const { t } = useLanguage();
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   const [links, setLinks] = useState<LinkItem[]>([]);
   const [originalUrl, setOriginalUrl] = useState('');
   const [title, setTitle] = useState('');
   const [customAlias, setCustomAlias] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
-const [qrModalLink, setQrModalLink] = useState<LinkItem | null>(null);
-const [qrDataUrl, setQrDataUrl] = useState('');
-const [isQrLoading, setIsQrLoading] = useState(false);
+  const [qrModalLink, setQrModalLink] = useState<LinkItem | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState('');
+  const [isQrLoading, setIsQrLoading] = useState(false);
   const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
   const [copiedShortCode, setCopiedShortCode] = useState<string | null>(null);
   const [mutatingLinkId, setMutatingLinkId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
 
-  const totalClicks = useMemo(() => {
-    return links.reduce((total, link) => total + link.totalClicks, 0);
-  }, [links]);
+  const totalClicks = useMemo(
+    () => links.reduce((total, link) => total + link.totalClicks, 0),
+    [links],
+  );
 
-  const activeLinks = useMemo(() => {
-    return links.filter((link) => link.status === 'ACTIVE').length;
-  }, [links]);
+  const activeLinks = useMemo(
+    () => links.filter((link) => link.status === 'ACTIVE').length,
+    [links],
+  );
 
   useEffect(() => {
     loadLinks();
@@ -69,13 +81,10 @@ const [isQrLoading, setIsQrLoading] = useState(false);
     setIsLoading(true);
 
     try {
-      const data = await apiRequest<LinkItem[]>('/links', {
-        token,
-      });
-
+      const data = await apiRequest<LinkItem[]>('/links', { token });
       setLinks(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Linkler yüklenemedi.');
+      setError(err instanceof Error ? err.message : t.links.loadFailed);
     } finally {
       setIsLoading(false);
     }
@@ -85,14 +94,12 @@ const [isQrLoading, setIsQrLoading] = useState(false);
     event.preventDefault();
 
     const token = getToken();
-
     if (!token) {
       router.push('/login');
       return;
     }
 
     setError('');
-    setSuccessMessage('');
     setIsCreating(true);
 
     try {
@@ -108,13 +115,13 @@ const [isQrLoading, setIsQrLoading] = useState(false);
       });
 
       setLinks((currentLinks) => [response.link, ...currentLinks]);
-      setSuccessMessage('Link başarıyla oluşturuldu.');
+      showToast(t.links.created);
       setOriginalUrl('');
       setTitle('');
       setCustomAlias('');
       setExpiresAt('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Link oluşturulamadı.');
+      setError(err instanceof Error ? err.message : t.links.createFailed);
     } finally {
       setIsCreating(false);
     }
@@ -122,14 +129,11 @@ const [isQrLoading, setIsQrLoading] = useState(false);
 
   async function handleToggleStatus(link: LinkItem) {
     if (!canToggleLinkStatus(link.status)) {
-      setError(
-        'Süresi dolmuş linkleri aktif etmek için önce bitiş tarihini güncelle.',
-      );
+      setError(t.links.expiredToggleError);
       return;
     }
 
     const token = getToken();
-
     if (!token) {
       router.push('/login');
       return;
@@ -139,7 +143,6 @@ const [isQrLoading, setIsQrLoading] = useState(false);
       link.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE';
 
     setError('');
-    setSuccessMessage('');
     setMutatingLinkId(link.id);
 
     try {
@@ -148,9 +151,7 @@ const [isQrLoading, setIsQrLoading] = useState(false);
         {
           method: 'PATCH',
           token,
-          body: {
-            status: nextStatus,
-          },
+          body: { status: nextStatus },
         },
       );
 
@@ -160,15 +161,11 @@ const [isQrLoading, setIsQrLoading] = useState(false);
         ),
       );
 
-      setSuccessMessage(
-        nextStatus === 'ACTIVE'
-          ? 'Link tekrar aktif edildi.'
-          : 'Link pasifleştirildi.',
+      showToast(
+        nextStatus === 'ACTIVE' ? t.links.activated : t.links.deactivated,
       );
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Link durumu güncellenemedi.',
-      );
+      setError(err instanceof Error ? err.message : t.links.toggleFailed);
     } finally {
       setMutatingLinkId(null);
     }
@@ -176,22 +173,23 @@ const [isQrLoading, setIsQrLoading] = useState(false);
 
   async function handleDeleteLink(link: LinkItem) {
     const token = getToken();
-
     if (!token) {
       router.push('/login');
       return;
     }
 
-    const confirmed = window.confirm(
-      `"${link.title ?? link.shortCode}" linkini silmek istediğine emin misin? Bu işlem geri alınamaz.`,
-    );
+    const confirmed = await confirm({
+      title: t.common.delete,
+      description: interpolate(t.links.deleteConfirm, {
+        name: link.title ?? link.shortCode,
+      }),
+      confirmLabel: t.common.delete,
+      variant: 'danger',
+    });
 
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     setError('');
-    setSuccessMessage('');
     setMutatingLinkId(link.id);
 
     try {
@@ -201,12 +199,14 @@ const [isQrLoading, setIsQrLoading] = useState(false);
       });
 
       setLinks((currentLinks) =>
-        currentLinks.filter((currentLink) => currentLink.id !== response.deletedLinkId),
+        currentLinks.filter(
+          (currentLink) => currentLink.id !== response.deletedLinkId,
+        ),
       );
 
-      setSuccessMessage('Link silindi.');
+      showToast(t.links.deleted);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Link silinemedi.');
+      setError(err instanceof Error ? err.message : t.links.deleteFailed);
     } finally {
       setMutatingLinkId(null);
     }
@@ -216,204 +216,150 @@ const [isQrLoading, setIsQrLoading] = useState(false);
     try {
       await navigator.clipboard.writeText(link.shortUrl);
       setCopiedShortCode(link.shortCode);
-
-      window.setTimeout(() => {
-        setCopiedShortCode(null);
-      }, 1500);
+      window.setTimeout(() => setCopiedShortCode(null), 1500);
     } catch {
-      setError('Kopyalama işlemi başarısız oldu.');
+      setError(t.links.copyFailed);
     }
   }
 
-
   async function handleOpenQr(link: LinkItem) {
-  setError('');
-  setQrModalLink(link);
-  setQrDataUrl('');
-  setIsQrLoading(true);
+    setError('');
+    setQrModalLink(link);
+    setQrDataUrl('');
+    setIsQrLoading(true);
 
-  try {
-    const dataUrl = await createQrCodeDataUrl(link.shortUrl);
-    setQrDataUrl(dataUrl);
-  } catch {
-    setError('QR kod oluşturulamadı.');
+    try {
+      const dataUrl = await createQrCodeDataUrl(link.shortUrl);
+      setQrDataUrl(dataUrl);
+    } catch {
+      setError(t.links.qrFailed);
+      setQrModalLink(null);
+    } finally {
+      setIsQrLoading(false);
+    }
+  }
+
+  function handleCloseQr() {
     setQrModalLink(null);
-  } finally {
+    setQrDataUrl('');
     setIsQrLoading(false);
   }
-}
 
-function handleCloseQr() {
-  setQrModalLink(null);
-  setQrDataUrl('');
-  setIsQrLoading(false);
-}
+  function handleDownloadQr() {
+    if (!qrDataUrl || !qrModalLink) return;
 
-function handleDownloadQr() {
-  if (!qrDataUrl || !qrModalLink) {
-    return;
-  }
-
-  const link = document.createElement('a');
-  link.href = qrDataUrl;
-  link.download = `${qrModalLink.shortCode}-qr.png`;
-  link.click();
-}
-
-
-  function getStatusBadgeClass(status: LinkStatus) {
-    return getLinkStatusBadgeClass(status);
+    const anchor = document.createElement('a');
+    anchor.href = qrDataUrl;
+    anchor.download = `${qrModalLink.shortCode}-qr.png`;
+    anchor.click();
   }
 
   if (isLoading) {
-    return <LoadingScreen text="Linkler yükleniyor..." />;
+    return <LoadingScreen text={t.links.loading} />;
   }
 
   return (
     <AppShell>
-      <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
-        <div>
-          <div className="mb-4 inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-sm text-cyan-200">
-            Link Management
-          </div>
-
-          <h1 className="text-4xl font-bold tracking-tight">Links</h1>
-
-          <p className="mt-3 max-w-2xl text-slate-400">
-            Kısa linklerini oluştur, paylaş ve performanslarını gerçek zamanlı
-            analytics verileriyle takip et.
-          </p>
-        </div>
-
-        <button
-          onClick={loadLinks}
-          className="rounded-xl border border-slate-700 px-5 py-3 text-sm font-medium text-slate-200 transition hover:bg-slate-900"
-        >
-          Listeyi Yenile
-        </button>
-      </div>
+      <PageHeader
+        badge={t.links.badge}
+        title={t.links.title}
+        description={t.links.description}
+        action={
+          <Button variant="secondary" onClick={loadLinks}>
+            <RefreshCw className="h-4 w-4" />
+            {t.links.refresh}
+          </Button>
+        }
+      />
 
       <div className="mt-8 grid gap-4 md:grid-cols-3">
         <MetricCard
-          title="Toplam Link"
+          title={t.links.totalLinks}
           value={links.length}
-          description="Hesabında oluşturulan link sayısı"
+          description={t.links.totalLinksDesc}
+          icon={Link2}
         />
-
         <MetricCard
-          title="Aktif Link"
+          title={t.links.activeLinks}
           value={activeLinks}
-          description="Şu anda yönlendirme yapan linkler"
+          description={t.links.activeLinksDesc}
+          icon={Link2}
         />
-
         <MetricCard
-          title="Toplam Tıklama"
+          title={t.links.totalClicks}
           value={totalClicks}
-          description="Tüm linklerden gelen toplam trafik"
+          description={t.links.totalClicksDesc}
+          icon={MousePointerClick}
         />
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[420px_1fr]">
-        <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/20">
-          <h2 className="text-xl font-semibold">Yeni link oluştur</h2>
-
-          <p className="mt-2 text-sm leading-6 text-slate-400">
-            URL mutlaka protokol ile başlamalı. Örnek:{' '}
-            <span className="text-slate-200">https://example.com</span>
-          </p>
+        <Card>
+          <CardHeader
+            title={t.links.createTitle}
+            description={t.links.createDesc}
+          />
 
           <form onSubmit={handleCreateLink} className="mt-6 space-y-4">
-            <div>
-              <label className="text-sm text-slate-300">Hedef URL</label>
-              <input
-                value={originalUrl}
-                onChange={(event) => setOriginalUrl(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm outline-none transition focus:border-cyan-400"
-                placeholder="https://example.com"
-                type="url"
-                required
-              />
-            </div>
+            <Input
+              label={t.links.targetUrl}
+              value={originalUrl}
+              onChange={(event) => setOriginalUrl(event.target.value)}
+              placeholder="https://example.com"
+              type="url"
+              required
+            />
 
-            <div>
-              <label className="text-sm text-slate-300">Başlık</label>
-              <input
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm outline-none transition focus:border-cyan-400"
-                placeholder="Portfolyo linkim"
-              />
-            </div>
+            <Input
+              label={t.links.linkTitle}
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder={t.links.titlePlaceholder}
+            />
 
             <div>
               <label className="text-sm text-slate-300">
-                Custom alias
-                <span className="ml-2 text-slate-500">opsiyonel</span>
+                {t.links.customAlias}
+                <span className="ml-2 text-slate-500">{t.common.optional}</span>
               </label>
-
               <div className="mt-2 flex overflow-hidden rounded-xl border border-slate-700 bg-slate-950 focus-within:border-cyan-400">
                 <span className="border-r border-slate-800 px-4 py-3 text-sm text-slate-500">
                   /r/
                 </span>
-
                 <input
                   value={customAlias}
                   onChange={(event) => setCustomAlias(event.target.value)}
                   className="w-full bg-transparent px-4 py-3 text-sm outline-none"
-                  placeholder="arif-portfolio"
+                  placeholder={t.links.aliasPlaceholder}
                 />
               </div>
-
-              <p className="mt-2 text-xs text-slate-500">
-                Sadece harf, sayı, tire ve alt çizgi kullan.
-              </p>
+              <p className="mt-2 text-xs text-slate-500">{t.links.aliasHint}</p>
             </div>
 
-            <div>
-              <label className="text-sm text-slate-300">
-                Bitiş tarihi
-                <span className="ml-2 text-slate-500">opsiyonel</span>
-              </label>
-              <input
-                value={expiresAt}
-                onChange={(event) => setExpiresAt(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm outline-none transition focus:border-cyan-400"
-                type="datetime-local"
-              />
-              <p className="mt-2 text-xs text-slate-500">
-                Boş bırakırsan link süresiz aktif kalır.
-              </p>
-            </div>
+            <Input
+              label={`${t.links.expiresAt} (${t.common.optional})`}
+              value={expiresAt}
+              onChange={(event) => setExpiresAt(event.target.value)}
+              type="datetime-local"
+              hint={t.links.expiresHint}
+            />
 
             <ErrorBanner message={error} />
-            <SuccessBanner message={successMessage} />
 
-            <button
-              disabled={isCreating}
-              className="w-full rounded-xl bg-cyan-400 px-4 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isCreating ? 'Oluşturuluyor...' : 'Kısa Link Oluştur'}
-            </button>
+            <Button type="submit" disabled={isCreating} fullWidth>
+              {isCreating ? t.links.creating : t.links.createButton}
+            </Button>
           </form>
-        </div>
+        </Card>
 
-        <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/20">
-          <div>
-            <h2 className="text-xl font-semibold">Linklerin</h2>
-            <p className="mt-1 text-sm text-slate-400">
-              Oluşturduğun kısa linkler ve tıklama sayıları.
-            </p>
-          </div>
+        <Card>
+          <CardHeader title={t.links.listTitle} description={t.links.listDesc} />
 
           <div className="mt-6 space-y-4">
             {links.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/60 p-8 text-center">
-                <p className="font-medium text-slate-200">
-                  Henüz link oluşturmadın.
-                </p>
-                <p className="mt-2 text-sm text-slate-500">
-                  İlk linkini oluşturarak analytics toplamaya başla.
-                </p>
+                <p className="font-medium text-slate-200">{t.links.noLinks}</p>
+                <p className="mt-2 text-sm text-slate-500">{t.links.noLinksDesc}</p>
               </div>
             ) : (
               links.map((link) => {
@@ -433,58 +379,51 @@ function handleDownloadQr() {
                           <h3 className="font-semibold">
                             {link.title ?? link.shortCode}
                           </h3>
-
-                          <span className={getStatusBadgeClass(link.status)}>
-                            {getLinkStatusLabel(link.status)}
+                          <span className={getLinkStatusBadgeClass(link.status)}>
+                            {getLinkStatusLabel(link.status, t)}
                           </span>
                         </div>
 
                         <p className="mt-2 break-all text-sm text-cyan-300">
                           {link.shortUrl}
                         </p>
-
                         <p className="mt-2 break-all text-sm text-slate-500">
                           {truncateText(link.originalUrl, 90)}
                         </p>
-
                         <p className="mt-3 text-xs text-slate-600">
-                          Oluşturulma: {formatDate(link.createdAt)}
+                          {t.links.createdAt}: {formatDate(link.createdAt)}
                           {link.expiresAt && (
-                            <>
-                              {' '}
-                              · Bitiş: {formatDateTime(link.expiresAt)}
-                            </>
+                            <> · {t.links.expires}: {formatDateTime(link.expiresAt)}</>
                           )}
                         </p>
                       </div>
 
                       <div className="flex shrink-0 flex-wrap gap-2">
-  <div className="rounded-xl border border-slate-800 px-3 py-2 text-sm text-slate-300">
-    {link.totalClicks} click
-  </div>
+                        <div className="rounded-xl border border-slate-800 px-3 py-2 text-sm text-slate-300">
+                          {link.totalClicks} {t.common.click}
+                        </div>
 
-  <Link
-    href={`/links/${link.id}`}
-    className="rounded-xl bg-cyan-400 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
-  >
-    Yönet
-  </Link>
+                        <Link href={`/links/${link.id}`}>
+                          <Button size="sm">{t.common.manage}</Button>
+                        </Link>
 
-  <button
-    onClick={() => handleCopy(link)}
-    className="rounded-xl bg-slate-800 px-3 py-2 text-sm text-slate-200 transition hover:bg-slate-700"
-  >
-    {copiedShortCode === link.shortCode ? 'Kopyalandı' : 'Kopyala'}
-  </button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleCopy(link)}
+                        >
+                          {copiedShortCode === link.shortCode
+                            ? t.common.copied
+                            : t.common.copy}
+                        </Button>
 
-  <button
-    onClick={() => handleOpenQr(link)}
-    className="rounded-xl border border-blue-400/30 bg-blue-400/10 px-3 py-2 text-sm text-blue-200 transition hover:bg-blue-400/20"
-  >
-    QR
-  </button>
-
-
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenQr(link)}
+                        >
+                          QR
+                        </Button>
 
                         {isActive ? (
                           <a
@@ -493,46 +432,44 @@ function handleDownloadQr() {
                             rel="noreferrer"
                             className="rounded-xl border border-slate-700 px-3 py-2 text-sm text-slate-200 transition hover:bg-slate-900"
                           >
-                            Test Et
+                            {t.common.testLink}
                           </a>
                         ) : isExpired ? (
                           <Link
                             href={`/links/${link.id}`}
                             className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200 transition hover:bg-red-500/20"
                           >
-                            Süreyi Uzat
+                            {t.common.extendExpiry}
                           </Link>
                         ) : (
                           <span className="rounded-xl border border-slate-800 px-3 py-2 text-sm text-slate-600">
-                            Pasif
+                            {t.common.inactive}
                           </span>
                         )}
 
-                        {canToggle ? (
-                          <button
+                        {canToggle && (
+                          <Button
+                            variant={isActive ? 'outline' : 'secondary'}
+                            size="sm"
                             onClick={() => handleToggleStatus(link)}
                             disabled={isMutating}
-                            className={
-                              isActive
-                                ? 'rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200 transition hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60'
-                                : 'rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60'
-                            }
                           >
                             {isMutating
-                              ? 'İşleniyor...'
+                              ? t.common.processing
                               : isActive
-                                ? 'Pasifleştir'
-                                : 'Aktif Et'}
-                          </button>
-                        ) : null}
+                                ? t.links.deactivate
+                                : t.links.activate}
+                          </Button>
+                        )}
 
-                        <button
+                        <Button
+                          variant="danger"
+                          size="sm"
                           onClick={() => handleDeleteLink(link)}
                           disabled={isMutating}
-                          className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          Sil
-                        </button>
+                          {t.common.delete}
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -540,68 +477,64 @@ function handleDownloadQr() {
               })
             )}
           </div>
+        </Card>
+      </div>
+
+      {qrModalLink && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6 backdrop-blur-sm">
+          <Card className="w-full max-w-md">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold">{t.links.qrTitle}</h2>
+                <p className="mt-1 text-sm text-slate-400">
+                  {qrModalLink.title ?? qrModalLink.shortCode}
+                </p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={handleCloseQr}>
+                {t.common.close}
+              </Button>
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-slate-800 bg-white p-4">
+              {isQrLoading ? (
+                <div className="flex h-72 items-center justify-center text-sm text-slate-500">
+                  {t.links.qrGenerating}
+                </div>
+              ) : (
+                qrDataUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={qrDataUrl}
+                    alt={`${qrModalLink.shortCode} QR`}
+                    className="h-full w-full rounded-xl"
+                  />
+                )
+              )}
+            </div>
+
+            <p className="mt-4 break-all rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-cyan-300">
+              {qrModalLink.shortUrl}
+            </p>
+
+            <div className="mt-5 flex gap-3">
+              <Button
+                onClick={handleDownloadQr}
+                disabled={!qrDataUrl || isQrLoading}
+                fullWidth
+              >
+                {t.common.downloadPng}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => handleCopy(qrModalLink)}
+                fullWidth
+              >
+                {t.common.copyLink}
+              </Button>
+            </div>
+          </Card>
         </div>
-      </div>
-
-{qrModalLink && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6 backdrop-blur-sm">
-    <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-950 p-6 shadow-2xl">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold">QR Code</h2>
-          <p className="mt-1 text-sm text-slate-400">
-            {qrModalLink.title ?? qrModalLink.shortCode}
-          </p>
-        </div>
-
-        <button
-          onClick={handleCloseQr}
-          className="rounded-xl border border-slate-800 px-3 py-2 text-sm text-slate-400 transition hover:bg-slate-900 hover:text-white"
-        >
-          Kapat
-        </button>
-      </div>
-
-      <div className="mt-6 rounded-2xl border border-slate-800 bg-white p-4">
-        {isQrLoading ? (
-          <div className="flex h-72 items-center justify-center text-sm text-slate-500">
-            QR oluşturuluyor...
-          </div>
-        ) : (
-          qrDataUrl && (
-            <img
-              src={qrDataUrl}
-              alt={`${qrModalLink.shortCode} QR code`}
-              className="h-full w-full rounded-xl"
-            />
-          )
-        )}
-      </div>
-
-      <p className="mt-4 break-all rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-cyan-300">
-        {qrModalLink.shortUrl}
-      </p>
-
-      <div className="mt-5 flex gap-3">
-        <button
-          onClick={handleDownloadQr}
-          disabled={!qrDataUrl || isQrLoading}
-          className="flex-1 rounded-xl bg-cyan-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          PNG İndir
-        </button>
-
-        <button
-          onClick={() => handleCopy(qrModalLink)}
-          className="flex-1 rounded-xl border border-slate-700 px-4 py-3 text-sm font-medium text-slate-200 transition hover:bg-slate-900"
-        >
-          Linki Kopyala
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-
+      )}
     </AppShell>
   );
 }

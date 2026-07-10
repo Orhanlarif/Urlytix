@@ -3,6 +3,12 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { LanguageToggle } from '@/components/ui/language-toggle';
+import { Logo } from '@/components/ui/logo';
+import { useLanguage } from '@/i18n/language-provider';
 import { apiRequest } from '@/lib/api';
 import { saveToken } from '@/lib/auth';
 
@@ -12,6 +18,7 @@ type AuthResponse = {
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { t } = useLanguage();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -37,7 +44,7 @@ export default function RegisterPage() {
       saveToken(response.accessToken);
       router.push('/dashboard');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Kayıt başarısız.');
+      setError(err instanceof Error ? err.message : t.auth.registerFailed);
     } finally {
       setIsLoading(false);
     }
@@ -45,54 +52,52 @@ export default function RegisterPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-white">
-      <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-2xl">
-        <Link href="/" className="text-sm text-cyan-300 hover:underline">
-          ← Ana sayfa
-        </Link>
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute left-1/2 top-0 h-96 w-96 -translate-x-1/2 rounded-full bg-cyan-500/10 blur-3xl" />
+      </div>
 
-        <h1 className="mt-4 text-3xl font-bold">Hesap oluştur</h1>
-        <p className="mt-2 text-sm text-slate-400">
-          Urlytics dashboard kullanmak için ücretsiz hesap oluştur.
-        </p>
+      <div className="absolute right-6 top-6">
+        <LanguageToggle size="sm" />
+      </div>
+
+      <Card className="relative w-full max-w-md">
+        <div className="mb-6">
+          <Logo href="/" size="sm" />
+        </div>
+
+        <h1 className="text-3xl font-bold">{t.auth.registerTitle}</h1>
+        <p className="mt-2 text-sm text-slate-400">{t.auth.registerDesc}</p>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-          <div>
-            <label className="text-sm text-slate-300">İsim</label>
-            <input
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-cyan-400"
-              placeholder="Adın"
-              autoComplete="name"
-            />
-          </div>
+          <Input
+            label={t.auth.name}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder={t.auth.name}
+            autoComplete="name"
+          />
 
-          <div>
-            <label className="text-sm text-slate-300">Email</label>
-            <input
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-cyan-400"
-              placeholder="ornek@email.com"
-              type="email"
-              required
-              autoComplete="email"
-            />
-          </div>
+          <Input
+            label={t.auth.email}
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="ornek@email.com"
+            type="email"
+            required
+            autoComplete="email"
+          />
 
-          <div>
-            <label className="text-sm text-slate-300">Şifre</label>
-            <input
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-cyan-400"
-              placeholder="En az 6 karakter"
-              type="password"
-              required
-              minLength={6}
-              autoComplete="new-password"
-            />
-          </div>
+          <Input
+            label={t.auth.password}
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="••••••••"
+            type="password"
+            required
+            minLength={6}
+            autoComplete="new-password"
+            hint={t.auth.passwordHint}
+          />
 
           {error && (
             <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
@@ -100,21 +105,18 @@ export default function RegisterPage() {
             </div>
           )}
 
-          <button
-            disabled={isLoading}
-            className="w-full rounded-xl bg-cyan-400 px-4 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isLoading ? 'Kaydediliyor...' : 'Kayıt Ol'}
-          </button>
+          <Button type="submit" disabled={isLoading} fullWidth size="lg">
+            {isLoading ? t.auth.registerLoading : t.auth.registerButton}
+          </Button>
         </form>
 
         <p className="mt-6 text-center text-sm text-slate-400">
-          Zaten hesabın var mı?{' '}
+          {t.auth.hasAccount}{' '}
           <Link href="/login" className="text-cyan-300 hover:underline">
-            Giriş yap
+            {t.auth.loginLink}
           </Link>
         </p>
-      </div>
+      </Card>
     </main>
   );
 }

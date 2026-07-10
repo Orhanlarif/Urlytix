@@ -1,13 +1,14 @@
 import type { LinkStatus } from '@/types/links';
+import type { Translation } from '@/i18n';
 
-export function getLinkStatusLabel(status: LinkStatus) {
+export function getLinkStatusLabel(status: LinkStatus, t: Translation) {
   switch (status) {
     case 'ACTIVE':
-      return 'Aktif';
+      return t.status.active;
     case 'DISABLED':
-      return 'Pasif';
+      return t.status.disabled;
     case 'EXPIRED':
-      return 'Süresi Doldu';
+      return t.status.expired;
     default:
       return status;
   }

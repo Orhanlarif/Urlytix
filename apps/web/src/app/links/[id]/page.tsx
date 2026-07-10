@@ -3,20 +3,35 @@
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import {
+  Bot,
+  Link2,
+  MousePointerClick,
+  TrendingUp,
+  Users,
+} from 'lucide-react';
 import { AppShell } from '@/components/layout/app-shell';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader } from '@/components/ui/card';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { ErrorBanner } from '@/components/ui/error-banner';
+import { Input } from '@/components/ui/input';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { MetricCard } from '@/components/ui/metric-card';
+import { useToast } from '@/components/ui/toast';
+import { interpolate } from '@/i18n';
+import { useLanguage } from '@/i18n/language-provider';
 import { apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/auth';
 import { formatDate, formatDateTime, truncateText } from '@/lib/format';
-import { createQrCodeDataUrl } from '@/lib/qr';
 import {
   canToggleLinkStatus,
   getLinkStatusBadgeClass,
   getLinkStatusLabel,
   isLinkOperational,
 } from '@/lib/link-status';
+import { createQrCodeDataUrl } from '@/lib/qr';
 import type { DailyClick, GroupedStat, LinkAnalytics } from '@/types/analytics';
 import type {
   DeleteLinkResponse,
@@ -29,6 +44,9 @@ export default function LinkDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const linkId = params.id;
+  const { t } = useLanguage();
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   const [analytics, setAnalytics] = useState<LinkAnalytics | null>(null);
   const [error, setError] = useState('');
@@ -41,7 +59,6 @@ export default function LinkDetailPage() {
   const [editTitle, setEditTitle] = useState('');
   const [editOriginalUrl, setEditOriginalUrl] = useState('');
   const [editExpiresAt, setEditExpiresAt] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
 
   const maxDailyClick = useMemo(() => {
     if (!analytics) return 0;
@@ -66,19 +83,17 @@ export default function LinkDetailPage() {
         setEditTitle(data.link.title ?? '');
         setEditOriginalUrl(data.link.originalUrl);
         setEditExpiresAt(
-          data.link.expiresAt
-            ? toDateTimeLocalValue(data.link.expiresAt)
-            : '',
+          data.link.expiresAt ? toDateTimeLocalValue(data.link.expiresAt) : '',
         );
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Analytics verisi yüklenemedi.');
+        setError(err instanceof Error ? err.message : t.linkDetail.loadFailed);
       } finally {
         setIsLoading(false);
       }
     }
 
     loadAnalytics();
-  }, [linkId, router]);
+  }, [linkId, router, t.linkDetail.loadFailed]);
 
   async function handleCopy() {
     if (!analytics) return;
@@ -86,12 +101,9 @@ export default function LinkDetailPage() {
     try {
       await navigator.clipboard.writeText(analytics.link.shortUrl);
       setCopied(true);
-
-      window.setTimeout(() => {
-        setCopied(false);
-      }, 1500);
+      window.setTimeout(() => setCopied(false), 1500);
     } catch {
-      setError('Kopyalama işlemi başarısız oldu.');
+      setError(t.linkDetail.copyFailed);
     }
   }
 
@@ -105,7 +117,7 @@ export default function LinkDetailPage() {
       const dataUrl = await createQrCodeDataUrl(analytics.link.shortUrl);
       setQrDataUrl(dataUrl);
     } catch {
-      setError('QR kod oluşturulamadı.');
+      setError(t.linkDetail.qrFailed);
     } finally {
       setIsQrLoading(false);
     }
@@ -131,7 +143,6 @@ export default function LinkDetailPage() {
     }
 
     setError('');
-    setSuccessMessage('');
     setIsSavingEdit(true);
 
     try {
@@ -152,19 +163,15 @@ export default function LinkDetailPage() {
 
       setAnalytics((current) => {
         if (!current) return current;
-
         return {
           ...current,
-          link: {
-            ...current.link,
-            ...response.link,
-          },
+          link: { ...current.link, ...response.link },
         };
       });
 
-      setSuccessMessage('Link bilgileri güncellendi.');
+      showToast(t.linkDetail.saved);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Link güncellenemedi.');
+      setError(err instanceof Error ? err.message : t.linkDetail.saveFailed);
     } finally {
       setIsSavingEdit(false);
     }
@@ -174,14 +181,11 @@ export default function LinkDetailPage() {
     if (!analytics) return;
 
     if (!canToggleLinkStatus(analytics.link.status)) {
-      setError(
-        'Süresi dolmuş linkleri aktif etmek için önce bitiş tarihini güncelle.',
-      );
+      setError(t.linkDetail.expiredToggleError);
       return;
     }
 
     const token = getToken();
-
     if (!token) {
       router.push('/login');
       return;
@@ -199,27 +203,23 @@ export default function LinkDetailPage() {
         {
           method: 'PATCH',
           token,
-          body: {
-            status: nextStatus,
-          },
+          body: { status: nextStatus },
         },
       );
 
       setAnalytics((current) => {
         if (!current) return current;
-
         return {
           ...current,
-          link: {
-            ...current.link,
-            status: response.link.status,
-          },
+          link: { ...current.link, status: response.link.status },
         };
       });
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Link durumu güncellenemedi.',
+
+      showToast(
+        nextStatus === 'ACTIVE' ? t.links.activated : t.links.deactivated,
       );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t.linkDetail.toggleFailed);
     } finally {
       setIsMutating(false);
     }
@@ -229,15 +229,19 @@ export default function LinkDetailPage() {
     if (!analytics) return;
 
     const token = getToken();
-
     if (!token) {
       router.push('/login');
       return;
     }
 
-    const confirmed = window.confirm(
-      `"${analytics.link.title ?? analytics.link.shortCode}" linkini silmek istediğine emin misin? Bu işlem geri alınamaz.`,
-    );
+    const confirmed = await confirm({
+      title: t.common.delete,
+      description: interpolate(t.linkDetail.deleteConfirm, {
+        name: analytics.link.title ?? analytics.link.shortCode,
+      }),
+      confirmLabel: t.common.delete,
+      variant: 'danger',
+    });
 
     if (!confirmed) return;
 
@@ -252,37 +256,33 @@ export default function LinkDetailPage() {
 
       router.push('/links');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Link silinemedi.');
+      setError(err instanceof Error ? err.message : t.linkDetail.deleteFailed);
     } finally {
       setIsMutating(false);
     }
   }
 
   if (isLoading) {
-    return <LoadingScreen text="Analytics yükleniyor..." />;
+    return <LoadingScreen text={t.linkDetail.loading} />;
   }
 
   if (error && !analytics) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-white">
-        <div className="max-w-md rounded-2xl border border-red-500/30 bg-red-500/10 p-6 text-center text-red-100">
-          <h1 className="text-xl font-semibold">Bir sorun oluştu</h1>
-          <p className="mt-2 text-sm">{error}</p>
-
-          <Link
-            href="/links"
-            className="mt-6 inline-flex rounded-xl bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800"
-          >
-            Linklere dön
+        <Card className="max-w-md text-center">
+          <h1 className="text-xl font-semibold text-red-100">
+            {t.linkDetail.errorTitle}
+          </h1>
+          <p className="mt-2 text-sm text-red-200/80">{error}</p>
+          <Link href="/links" className="mt-6 inline-block">
+            <Button variant="secondary">{t.common.backToLinks}</Button>
           </Link>
-        </div>
+        </Card>
       </main>
     );
   }
 
-  if (!analytics) {
-    return null;
-  }
+  if (!analytics) return null;
 
   const isActive = isLinkOperational(analytics.link.status);
   const isExpired = analytics.link.status === 'EXPIRED';
@@ -298,14 +298,14 @@ export default function LinkDetailPage() {
       <div className="grid gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
         <div className="min-w-0">
           <Link href="/links" className="text-sm text-cyan-300 hover:underline">
-            ← Linklere dön
+            ← {t.common.backToLinks}
           </Link>
 
-          <div className="mt-5 inline-flex rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-sm text-cyan-200">
-            Link Analytics
-          </div>
+          <Badge variant="accent" className="mt-5">
+            {t.linkDetail.badge}
+          </Badge>
 
-          <h1 className="mt-4 break-words text-4xl font-bold tracking-tight">
+          <h1 className="mt-4 break-words text-3xl font-bold tracking-tight md:text-4xl">
             {analytics.link.title ?? analytics.link.shortCode}
           </h1>
 
@@ -318,45 +318,38 @@ export default function LinkDetailPage() {
               {analytics.link.shortUrl}
             </span>
 
-            <button
-              onClick={handleCopy}
-              className="rounded-xl bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
-            >
-              {copied ? 'Kopyalandı' : 'Kopyala'}
-            </button>
+            <Button size="sm" onClick={handleCopy}>
+              {copied ? t.common.copied : t.common.copy}
+            </Button>
 
             {isActive ? (
               <a
                 href={analytics.link.shortUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-200 transition hover:bg-slate-900"
               >
-                Test Et
+                <Button variant="outline" size="sm">
+                  {t.common.testLink}
+                </Button>
               </a>
             ) : isExpired ? (
-              <span className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-200">
-                Süresi doldu
-              </span>
+              <Badge variant="danger">{t.linkDetail.expired}</Badge>
             ) : (
-              <span className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-200">
-                Link pasif
-              </span>
+              <Badge variant="warning">{t.linkDetail.disabled}</Badge>
             )}
           </div>
         </div>
 
-        <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/20">
+        <Card>
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm text-slate-400">Link Durumu</p>
+              <p className="text-sm text-slate-400">{t.linkDetail.status}</p>
               <span
                 className={`mt-2 inline-flex ${getLinkStatusBadgeClass(analytics.link.status)}`}
               >
-                {getLinkStatusLabel(analytics.link.status)}
+                {getLinkStatusLabel(analytics.link.status, t)}
               </span>
             </div>
-
             <div
               className={
                 isActive
@@ -370,237 +363,224 @@ export default function LinkDetailPage() {
 
           {isExpired && (
             <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-              Bu linkin süresi doldu. Yeniden aktif etmek için bitiş tarihini
-              güncelle.
+              {t.linkDetail.expiredNotice}
             </div>
           )}
 
           <p className="mt-4 text-sm text-slate-500">
-            Created: {formatDate(analytics.link.createdAt)}
+            {t.linkDetail.created}: {formatDate(analytics.link.createdAt)}
           </p>
 
           {analytics.link.expiresAt && (
             <p className="mt-2 text-sm text-slate-500">
-              Expires: {formatDateTime(analytics.link.expiresAt)}
+              {t.linkDetail.expires}: {formatDateTime(analytics.link.expiresAt)}
             </p>
           )}
 
-          <form onSubmit={handleSaveEdit} className="mt-6 space-y-4 border-t border-slate-800 pt-6">
-            <div>
-              <label className="text-sm text-slate-400">Başlık</label>
-              <input
-                value={editTitle}
-                onChange={(event) => setEditTitle(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm outline-none transition focus:border-cyan-400"
-                placeholder="Link başlığı"
-              />
-            </div>
+          <form
+            onSubmit={handleSaveEdit}
+            className="mt-6 space-y-4 border-t border-slate-800 pt-6"
+          >
+            <Input
+              label={t.linkDetail.editTitle}
+              value={editTitle}
+              onChange={(event) => setEditTitle(event.target.value)}
+            />
 
-            <div>
-              <label className="text-sm text-slate-400">Hedef URL</label>
-              <input
-                value={editOriginalUrl}
-                onChange={(event) => setEditOriginalUrl(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm outline-none transition focus:border-cyan-400"
-                type="url"
-                required
-              />
-            </div>
+            <Input
+              label={t.linkDetail.targetUrl}
+              value={editOriginalUrl}
+              onChange={(event) => setEditOriginalUrl(event.target.value)}
+              type="url"
+              required
+            />
 
-            <div>
-              <label className="text-sm text-slate-400">Bitiş tarihi</label>
-              <input
-                value={editExpiresAt}
-                onChange={(event) => setEditExpiresAt(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm outline-none transition focus:border-cyan-400"
-                type="datetime-local"
-              />
-              <p className="mt-2 text-xs text-slate-500">
-                Boş bırakırsan süresiz olur.
-              </p>
-            </div>
+            <Input
+              label={t.linkDetail.expiresAt}
+              value={editExpiresAt}
+              onChange={(event) => setEditExpiresAt(event.target.value)}
+              type="datetime-local"
+              hint={t.linkDetail.expiresHint}
+            />
 
-            <button
-              type="submit"
-              disabled={isSavingEdit}
-              className="w-full rounded-xl bg-cyan-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSavingEdit ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
-            </button>
+            <Button type="submit" disabled={isSavingEdit} fullWidth>
+              {isSavingEdit ? t.common.saving : t.linkDetail.saveChanges}
+            </Button>
           </form>
 
           <div className="mt-6 space-y-3">
-            {canToggle ? (
-              <button
+            {canToggle && (
+              <Button
+                variant={isActive ? 'outline' : 'secondary'}
                 onClick={handleToggleStatus}
                 disabled={isMutating}
-                className={
-                  isActive
-                    ? 'w-full rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-200 transition hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60'
-                    : 'w-full rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-200 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60'
-                }
+                fullWidth
               >
                 {isMutating
-                  ? 'İşleniyor...'
+                  ? t.common.processing
                   : isActive
-                    ? 'Linki Pasifleştir'
-                    : 'Linki Aktif Et'}
-              </button>
-            ) : null}
-
-            <button
-              onClick={handleGenerateQr}
-              disabled={isQrLoading}
-              className="w-full rounded-xl border border-blue-400/30 bg-blue-400/10 px-4 py-3 text-sm font-medium text-blue-200 transition hover:bg-blue-400/20 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isQrLoading ? 'QR oluşturuluyor...' : 'QR Code Oluştur'}
-            </button>
-
-            {qrDataUrl && (
-              <button
-                onClick={handleDownloadQr}
-                className="w-full rounded-xl bg-cyan-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
-              >
-                QR PNG İndir
-              </button>
+                    ? t.linkDetail.disableLink
+                    : t.linkDetail.enableLink}
+              </Button>
             )}
 
-            <button
+            <Button
+              variant="outline"
+              onClick={handleGenerateQr}
+              disabled={isQrLoading}
+              fullWidth
+            >
+              {isQrLoading ? t.linkDetail.qrGenerating : t.linkDetail.generateQr}
+            </Button>
+
+            {qrDataUrl && (
+              <Button onClick={handleDownloadQr} fullWidth>
+                {t.common.downloadPng}
+              </Button>
+            )}
+
+            <Button
+              variant="danger"
               onClick={handleDeleteLink}
               disabled={isMutating}
-              className="w-full rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-200 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+              fullWidth
             >
-              Linki Sil
-            </button>
+              {t.linkDetail.deleteLink}
+            </Button>
           </div>
-        </div>
+        </Card>
       </div>
 
       <div className="mt-6">
         <ErrorBanner message={error} />
-        {successMessage && (
-          <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-            {successMessage}
-          </div>
-        )}
       </div>
 
       <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <MetricCard
-          title="Toplam Tıklama"
+          title={t.linkDetail.totalClicks}
           value={analytics.link.totalClicks}
-          description="Bu linke gelen toplam trafik"
+          description={t.linkDetail.totalClicksDesc}
+          icon={MousePointerClick}
         />
-
         <MetricCard
-          title="Benzersiz Ziyaretçi"
+          title={t.linkDetail.uniqueVisitors}
           value={analytics.uniqueVisitors}
-          description="Cookie tabanlı tekil ziyaretçi sayısı"
+          description={t.linkDetail.uniqueVisitorsDesc}
+          icon={Users}
         />
-
         <MetricCard
-          title="Gerçek Kullanıcı"
+          title={t.linkDetail.humanClicks}
           value={analytics.botStats.humanClicks}
-          description="Bot olarak algılanmayan ziyaretler"
+          description={t.linkDetail.humanClicksDesc}
+          icon={TrendingUp}
         />
-
         <MetricCard
-          title="Bot Tıklama"
+          title={t.linkDetail.botClicks}
           value={analytics.botStats.botClicks}
-          description="Crawler / bot olarak işaretlenen ziyaretler"
+          description={t.linkDetail.botClicksDesc}
+          icon={Bot}
         />
-
         <MetricCard
-          title="Son 14 Gün"
+          title={t.linkDetail.last14Days}
           value={last14DaysTotalClicks}
-          description="Son iki haftadaki toplam tıklama"
+          description={t.linkDetail.last14DaysDesc}
+          icon={Link2}
         />
       </div>
 
       {qrDataUrl && (
         <div className="mt-8 grid gap-6 lg:grid-cols-[320px_1fr]">
-          <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/20">
-            <h2 className="text-xl font-semibold">QR Code</h2>
-            <p className="mt-1 text-sm text-slate-400">
-              Bu QR kod kısa linke yönlendirir.
-            </p>
-
+          <Card>
+            <CardHeader
+              title={t.linkDetail.qrSection}
+              description={t.linkDetail.qrSectionDesc}
+            />
             <div className="mt-6 rounded-2xl bg-white p-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={qrDataUrl}
-                alt={`${analytics.link.shortCode} QR code`}
+                alt={`${analytics.link.shortCode} QR`}
                 className="h-full w-full rounded-xl"
               />
             </div>
-          </div>
+          </Card>
 
-          <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/20">
-            <h2 className="text-xl font-semibold">Paylaşım Bilgisi</h2>
-
+          <Card>
+            <CardHeader title={t.linkDetail.shareInfo} />
             <div className="mt-6 space-y-4">
               <div>
-                <p className="text-sm text-slate-400">Kısa link</p>
+                <p className="text-sm text-slate-400">{t.linkDetail.shortLink}</p>
                 <p className="mt-2 break-all rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-cyan-300">
                   {analytics.link.shortUrl}
                 </p>
               </div>
-
               <div>
-                <p className="text-sm text-slate-400">Hedef URL</p>
+                <p className="text-sm text-slate-400">
+                  {t.linkDetail.targetUrlLabel}
+                </p>
                 <p className="mt-2 break-all rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-300">
                   {analytics.link.originalUrl}
                 </p>
               </div>
-
-              <button
-                onClick={handleDownloadQr}
-                className="rounded-xl bg-cyan-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
-              >
-                QR PNG İndir
-              </button>
+              <Button onClick={handleDownloadQr}>{t.common.downloadPng}</Button>
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
-      <div className="mt-8 rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/20">
-        <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-          <div>
-            <h2 className="text-xl font-semibold">Son 14 gün tıklama grafiği</h2>
-            <p className="mt-1 text-sm text-slate-400">
-              Kısa linkin günlük tıklama trendi.
-            </p>
-          </div>
-        </div>
-
-        <DailyClicksChart data={analytics.dailyClicks} maxValue={maxDailyClick} />
-      </div>
+      <Card className="mt-8">
+        <CardHeader
+          title={t.linkDetail.chartTitle}
+          description={t.linkDetail.chartDesc}
+        />
+        <DailyClicksChart
+          data={analytics.dailyClicks}
+          maxValue={maxDailyClick}
+          clickLabel={t.common.click}
+        />
+      </Card>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        <StatsPanel title="Cihaz Dağılımı" items={analytics.deviceStats} />
-        <StatsPanel title="Tarayıcı Dağılımı" items={analytics.browserStats} />
-        <StatsPanel title="İşletim Sistemi" items={analytics.osStats} />
-        <StatsPanel title="Referrer Kaynakları" items={analytics.referrerStats} />
+        <StatsPanel
+          title={t.linkDetail.deviceStats}
+          items={analytics.deviceStats}
+          noDataLabel={t.linkDetail.noData}
+        />
+        <StatsPanel
+          title={t.linkDetail.browserStats}
+          items={analytics.browserStats}
+          noDataLabel={t.linkDetail.noData}
+        />
+        <StatsPanel
+          title={t.linkDetail.osStats}
+          items={analytics.osStats}
+          noDataLabel={t.linkDetail.noData}
+        />
+        <StatsPanel
+          title={t.linkDetail.referrerStats}
+          items={analytics.referrerStats}
+          noDataLabel={t.linkDetail.noData}
+        />
       </div>
 
-      <div className="mt-8 rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/20">
-        <h2 className="text-xl font-semibold">Son tıklamalar</h2>
-        <p className="mt-1 text-sm text-slate-400">
-          Bu linke gelen son ziyaret kayıtları.
-        </p>
+      <Card className="mt-8">
+        <CardHeader
+          title={t.linkDetail.recentClicks}
+          description={t.linkDetail.recentClicksDesc}
+        />
 
         <div className="mt-6 overflow-hidden rounded-2xl border border-slate-800">
           <div className="hidden grid-cols-[1.2fr_1fr_1fr_1fr_1fr] border-b border-slate-800 bg-slate-950 px-4 py-3 text-xs uppercase tracking-wide text-slate-500 md:grid">
-            <div>Zaman</div>
-            <div>Cihaz</div>
-            <div>Tarayıcı</div>
-            <div>Kaynak</div>
-            <div>Tip</div>
+            <div>{t.linkDetail.time}</div>
+            <div>{t.linkDetail.device}</div>
+            <div>{t.linkDetail.browser}</div>
+            <div>{t.linkDetail.source}</div>
+            <div>{t.linkDetail.type}</div>
           </div>
 
           {analytics.recentClicks.length === 0 ? (
             <div className="bg-slate-950 p-6 text-sm text-slate-400">
-              Henüz tıklama yok.
+              {t.linkDetail.noClicks}
             </div>
           ) : (
             analytics.recentClicks.map((click) => (
@@ -611,33 +591,24 @@ export default function LinkDetailPage() {
                 <div className="text-slate-300">
                   {formatDateTime(click.clickedAt)}
                 </div>
-
                 <div className="text-slate-400">{click.deviceType}</div>
-
                 <div className="text-slate-400">
-                  {click.browser ?? 'Unknown'} · {click.os ?? 'Unknown'}
+                  {click.browser ?? t.common.unknown} ·{' '}
+                  {click.os ?? t.common.unknown}
                 </div>
-
                 <div className="break-all text-slate-400">
-                  {click.referrer ?? 'Direct'}
+                  {click.referrer ?? t.common.direct}
                 </div>
-
                 <div>
-                  <span
-                    className={
-                      click.isBot
-                        ? 'rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-xs text-amber-200'
-                        : 'rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-xs text-emerald-200'
-                    }
-                  >
-                    {click.isBot ? 'Bot' : 'Human'}
-                  </span>
+                  <Badge variant={click.isBot ? 'warning' : 'success'}>
+                    {click.isBot ? t.common.bot : t.common.human}
+                  </Badge>
                 </div>
               </div>
             ))
           )}
         </div>
-      </div>
+      </Card>
     </AppShell>
   );
 }
@@ -652,9 +623,11 @@ function toDateTimeLocalValue(value: string) {
 function DailyClicksChart({
   data,
   maxValue,
+  clickLabel,
 }: {
   data: DailyClick[];
   maxValue: number;
+  clickLabel: string;
 }) {
   return (
     <div className="mt-8 flex h-64 items-end gap-2 border-b border-slate-800 pb-4">
@@ -669,13 +642,10 @@ function DailyClicksChart({
             <div className="flex h-52 w-full items-end">
               <div
                 className="w-full rounded-t-xl bg-cyan-400/80 transition hover:bg-cyan-300"
-                style={{
-                  height: `${height}%`,
-                }}
-                title={`${item.date}: ${item.clicks} click`}
+                style={{ height: `${height}%` }}
+                title={`${item.date}: ${item.clicks} ${clickLabel}`}
               />
             </div>
-
             <div className="text-center text-[10px] text-slate-500">
               {item.date.slice(5)}
             </div>
@@ -686,19 +656,27 @@ function DailyClicksChart({
   );
 }
 
-function StatsPanel({ title, items }: { title: string; items: GroupedStat[] }) {
+function StatsPanel({
+  title,
+  items,
+  noDataLabel,
+}: {
+  title: string;
+  items: GroupedStat[];
+  noDataLabel: string;
+}) {
   const total = items.reduce((sum, item) => sum + item.count, 0);
 
   return (
-    <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-black/20">
+    <Card>
       <h2 className="text-xl font-semibold">{title}</h2>
-
       <div className="mt-6 space-y-4">
         {items.length === 0 ? (
-          <p className="text-sm text-slate-400">Henüz veri yok.</p>
+          <p className="text-sm text-slate-400">{noDataLabel}</p>
         ) : (
           items.map((item) => {
-            const percent = total > 0 ? Math.round((item.count / total) * 100) : 0;
+            const percent =
+              total > 0 ? Math.round((item.count / total) * 100) : 0;
 
             return (
               <div key={item.name}>
@@ -708,13 +686,10 @@ function StatsPanel({ title, items }: { title: string; items: GroupedStat[] }) {
                     {item.count} · {percent}%
                   </span>
                 </div>
-
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-800">
                   <div
                     className="h-full rounded-full bg-cyan-400"
-                    style={{
-                      width: `${Math.max(percent, 4)}%`,
-                    }}
+                    style={{ width: `${Math.max(percent, 4)}%` }}
                   />
                 </div>
               </div>
@@ -722,7 +697,6 @@ function StatsPanel({ title, items }: { title: string; items: GroupedStat[] }) {
           })
         )}
       </div>
-    </div>
+    </Card>
   );
 }
-  

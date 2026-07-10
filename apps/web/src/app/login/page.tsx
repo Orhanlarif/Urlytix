@@ -3,6 +3,12 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, Suspense, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { LanguageToggle } from '@/components/ui/language-toggle';
+import { Logo } from '@/components/ui/logo';
+import { useLanguage } from '@/i18n/language-provider';
 import { apiRequest } from '@/lib/api';
 import { saveToken } from '@/lib/auth';
 
@@ -13,6 +19,7 @@ type AuthResponse = {
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t } = useLanguage();
 
   const redirectTo = searchParams.get('redirect') ?? '/dashboard';
   const sessionExpired = searchParams.get('expired') === '1';
@@ -30,16 +37,13 @@ function LoginForm() {
     try {
       const response = await apiRequest<AuthResponse>('/auth/login', {
         method: 'POST',
-        body: {
-          email,
-          password,
-        },
+        body: { email, password },
       });
 
       saveToken(response.accessToken);
       router.push(redirectTo);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Giriş başarısız.');
+      setError(err instanceof Error ? err.message : t.auth.loginFailed);
     } finally {
       setIsLoading(false);
     }
@@ -47,48 +51,48 @@ function LoginForm() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-white">
-      <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-2xl">
-        <Link href="/" className="text-sm text-cyan-300 hover:underline">
-          ← Ana sayfa
-        </Link>
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute left-1/2 top-0 h-96 w-96 -translate-x-1/2 rounded-full bg-cyan-500/10 blur-3xl" />
+      </div>
 
-        <h1 className="mt-4 text-3xl font-bold">Giriş yap</h1>
-        <p className="mt-2 text-sm text-slate-400">
-          Linklerini ve analytics verilerini yönet.
-        </p>
+      <div className="absolute right-6 top-6">
+        <LanguageToggle size="sm" />
+      </div>
+
+      <Card className="relative w-full max-w-md">
+        <div className="mb-6">
+          <Logo href="/" size="sm" />
+        </div>
+
+        <h1 className="text-3xl font-bold">{t.auth.loginTitle}</h1>
+        <p className="mt-2 text-sm text-slate-400">{t.auth.loginDesc}</p>
 
         {sessionExpired && (
           <div className="mt-6 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-            Oturum süren doldu. Lütfen tekrar giriş yap.
+            {t.auth.sessionExpired}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-          <div>
-            <label className="text-sm text-slate-300">Email</label>
-            <input
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-cyan-400"
-              placeholder="ornek@email.com"
-              type="email"
-              required
-              autoComplete="email"
-            />
-          </div>
+          <Input
+            label={t.auth.email}
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="ornek@email.com"
+            type="email"
+            required
+            autoComplete="email"
+          />
 
-          <div>
-            <label className="text-sm text-slate-300">Şifre</label>
-            <input
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 outline-none focus:border-cyan-400"
-              placeholder="••••••••"
-              type="password"
-              required
-              autoComplete="current-password"
-            />
-          </div>
+          <Input
+            label={t.auth.password}
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="••••••••"
+            type="password"
+            required
+            autoComplete="current-password"
+          />
 
           {error && (
             <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
@@ -96,31 +100,30 @@ function LoginForm() {
             </div>
           )}
 
-          <button
-            disabled={isLoading}
-            className="w-full rounded-xl bg-cyan-400 px-4 py-3 font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isLoading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
-          </button>
+          <Button type="submit" disabled={isLoading} fullWidth size="lg">
+            {isLoading ? t.auth.loginLoading : t.auth.loginButton}
+          </Button>
         </form>
 
         <p className="mt-6 text-center text-sm text-slate-400">
-          Hesabın yok mu?{' '}
+          {t.auth.noAccount}{' '}
           <Link href="/register" className="text-cyan-300 hover:underline">
-            Kayıt ol
+            {t.auth.registerLink}
           </Link>
         </p>
-      </div>
+      </Card>
     </main>
   );
 }
 
 export default function LoginPage() {
+  const { t } = useLanguage();
+
   return (
     <Suspense
       fallback={
         <main className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
-          <p className="text-slate-400">Yükleniyor...</p>
+          <p className="text-slate-400">{t.common.loading}</p>
         </main>
       }
     >

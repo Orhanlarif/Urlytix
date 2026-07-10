@@ -5,8 +5,12 @@ type LoadingScreenProps = {
 export function LoadingScreen({ text = 'Yükleniyor...' }: LoadingScreenProps) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-white">
-      <div className="rounded-2xl border border-slate-800 bg-slate-900 px-6 py-4 text-sm text-slate-300">
-        {text}
+      <div className="flex flex-col items-center gap-4">
+        <div className="relative h-12 w-12">
+          <div className="absolute inset-0 rounded-full border-2 border-slate-800" />
+          <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-cyan-400" />
+        </div>
+        <p className="text-sm text-slate-400">{text}</p>
       </div>
     </main>
   );
