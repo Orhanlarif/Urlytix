@@ -20,8 +20,10 @@ describe('AuthService', () => {
     refreshSession: {
       create: jest.fn(),
       findUnique: jest.fn(),
+      update: jest.fn(),
       updateMany: jest.fn(),
     },
+    $transaction: jest.fn(),
   };
 
   const jwtService = {
@@ -30,6 +32,10 @@ describe('AuthService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    prisma.$transaction.mockImplementation(
+      async (callback: (tx: typeof prisma) => Promise<unknown>) =>
+        callback(prisma),
+    );
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -148,6 +154,38 @@ describe('AuthService', () => {
 
       await expect(service.getMe('missing-id')).rejects.toThrow(
         NotFoundException,
+      );
+    });
+  });
+
+  describe('refresh', () => {
+    it('revokes the previous session and rotates both tokens', async () => {
+      prisma.refreshSession.findUnique.mockResolvedValue({
+        id: 'session-1',
+        revokedAt: null,
+        expiresAt: new Date(Date.now() + 60_000),
+        user: { id: 'user-1', email: 'test@example.com' },
+      });
+
+      const result = await service.refresh('valid-refresh-token');
+
+      expect(result.accessToken).toBe('signed-jwt-token');
+      expect(result.refreshToken).toBeDefined();
+      expect(prisma.refreshSession.update).toHaveBeenCalledWith({
+        where: { id: 'session-1' },
+        data: { revokedAt: expect.any(Date) },
+      });
+      expect(prisma.refreshSession.create).toHaveBeenCalled();
+    });
+
+    it('rejects revoked sessions', async () => {
+      prisma.refreshSession.findUnique.mockResolvedValue({
+        revokedAt: new Date(),
+        expiresAt: new Date(Date.now() + 60_000),
+      });
+
+      await expect(service.refresh('revoked-token')).rejects.toThrow(
+        UnauthorizedException,
       );
     });
   });

@@ -99,6 +99,20 @@ describe('LinksService', () => {
         }),
       ).rejects.toThrow(BadRequestException);
     });
+
+    it('rejects localhost and private network destinations', async () => {
+      await expect(
+        service.createLink('user-1', {
+          originalUrl: 'http://127.0.0.1:8080/admin',
+        }),
+      ).rejects.toThrow(BadRequestException);
+
+      await expect(
+        service.createLink('user-1', {
+          originalUrl: 'http://192.168.1.10/internal',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
   });
 
   describe('getUserLinks', () => {
