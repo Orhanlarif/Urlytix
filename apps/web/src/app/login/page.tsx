@@ -9,12 +9,7 @@ import { Input } from '@/components/ui/input';
 import { LanguageToggle } from '@/components/ui/language-toggle';
 import { Logo } from '@/components/ui/logo';
 import { useLanguage } from '@/i18n/language-provider';
-import { apiRequest } from '@/lib/api';
-import { saveToken } from '@/lib/auth';
-
-type AuthResponse = {
-  accessToken: string;
-};
+import { authService } from '@/services/auth';
 
 function LoginForm() {
   const router = useRouter();
@@ -35,13 +30,9 @@ function LoginForm() {
     setIsLoading(true);
 
     try {
-      const response = await apiRequest<AuthResponse>('/auth/login', {
-        method: 'POST',
-        body: { email, password },
-      });
-
-      saveToken(response.accessToken);
+      await authService.login(email, password);
       router.push(redirectTo);
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : t.auth.loginFailed);
     } finally {

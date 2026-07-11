@@ -1,8 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
 import { Link2, MousePointerClick, TrendingUp } from 'lucide-react';
 import { AppShell } from '@/components/layout/app-shell';
 import { Button } from '@/components/ui/button';
@@ -11,44 +9,16 @@ import { ErrorBanner } from '@/components/ui/error-banner';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { MetricCard } from '@/components/ui/metric-card';
 import { PageHeader } from '@/components/ui/page-header';
+import { useApiResource } from '@/hooks/use-api-resource';
 import { useLanguage } from '@/i18n/language-provider';
-import { apiRequest } from '@/lib/api';
 import { formatDateTime } from '@/lib/format';
-import { getToken } from '@/lib/auth';
-import type { DashboardOverview } from '@/types/analytics';
+import { analyticsService } from '@/services/analytics';
 
 export default function DashboardPage() {
-  const router = useRouter();
   const { t } = useLanguage();
-
-  const [overview, setOverview] = useState<DashboardOverview | null>(null);
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    async function loadDashboard() {
-      const token = getToken();
-
-      if (!token) {
-        router.push('/login');
-        return;
-      }
-
-      try {
-        const data = await apiRequest<DashboardOverview>('/analytics/overview', {
-          token,
-        });
-
-        setOverview(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : t.dashboard.loadFailed);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    loadDashboard();
-  }, [router, t.dashboard.loadFailed]);
+  const { data: overview, error, isLoading } = useApiResource(
+    analyticsService.overview,
+  );
 
   if (isLoading) {
     return <LoadingScreen text={t.dashboard.loading} />;

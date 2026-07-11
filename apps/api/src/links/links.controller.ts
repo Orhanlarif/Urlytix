@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   Res,
   UseGuards,
@@ -20,6 +21,7 @@ import { AppConfigService } from '../config/app-config.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 import { CreateLinkDto } from './dto/create-link.dto';
+import { ListLinksQueryDto } from './dto/list-links-query.dto';
 
 import { UpdateLinkDto } from './dto/update-link.dto';
 
@@ -50,10 +52,10 @@ export class LinksController {
 
   @UseGuards(JwtAuthGuard)
   @Get('links')
-  getUserLinks(@Req() req: Request) {
+  getUserLinks(@Req() req: Request, @Query() query: ListLinksQueryDto) {
     const userId = req.user.sub;
 
-    return this.linksService.getUserLinks(userId);
+    return this.linksService.getUserLinks(userId, query);
   }
 
   @UseGuards(JwtAuthGuard)

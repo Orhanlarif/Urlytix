@@ -8,16 +8,17 @@ import { AppShell } from '@/components/layout/app-shell';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
 import { useConfirm } from '@/components/ui/confirm-dialog';
+import { DropdownItem, DropdownMenu } from '@/components/ui/dropdown-menu';
+import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorBanner } from '@/components/ui/error-banner';
 import { Input } from '@/components/ui/input';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { MetricCard } from '@/components/ui/metric-card';
 import { PageHeader } from '@/components/ui/page-header';
+import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import { interpolate } from '@/i18n';
 import { useLanguage } from '@/i18n/language-provider';
-import { apiRequest } from '@/lib/api';
-import { getToken } from '@/lib/auth';
 import { formatDate, formatDateTime, truncateText } from '@/lib/format';
 import {
   canToggleLinkStatus,
@@ -26,12 +27,10 @@ import {
   isLinkOperational,
 } from '@/lib/link-status';
 import { createQrCodeDataUrl } from '@/lib/qr';
+import { linksService } from '@/services/links';
 import type {
-  CreateLinkResponse,
-  DeleteLinkResponse,
   LinkItem,
   LinkStatus,
-  UpdateLinkStatusResponse,
 } from '@/types/links';
 
 export default function LinksPage() {
@@ -53,6 +52,11 @@ export default function LinksPage() {
   const [mutatingLinkId, setMutatingLinkId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | LinkStatus>('ALL');
+  const [sortBy, setSortBy] = useState<'NEWEST' | 'CLICKS' | 'TITLE'>('NEWEST');
+  const [page, setPage] = useState(1);
+  const pageSize = 6;
 
   const totalClicks = useMemo(
     () => links.reduce((total, link) => total + link.totalClicks, 0),
@@ -64,24 +68,35 @@ export default function LinksPage() {
     [links],
   );
 
+  const filteredLinks = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase();
+    return links
+      .filter((link) => statusFilter === 'ALL' || link.status === statusFilter)
+      .filter((link) =>
+        !query ||
+        [link.title, link.shortCode, link.shortUrl, link.originalUrl]
+          .some((value) => value?.toLocaleLowerCase().includes(query)),
+      )
+      .sort((a, b) => {
+        if (sortBy === 'CLICKS') return b.totalClicks - a.totalClicks;
+        if (sortBy === 'TITLE') return (a.title ?? a.shortCode).localeCompare(b.title ?? b.shortCode);
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+  }, [links, search, sortBy, statusFilter]);
+  const pageCount = Math.max(1, Math.ceil(filteredLinks.length / pageSize));
+  const visibleLinks = filteredLinks.slice((page - 1) * pageSize, page * pageSize);
+
   useEffect(() => {
     loadLinks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadLinks() {
-    const token = getToken();
-
-    if (!token) {
-      router.push('/login');
-      return;
-    }
-
     setError('');
     setIsLoading(true);
 
     try {
-      const data = await apiRequest<LinkItem[]>('/links', { token });
+      const data = await linksService.list();
       setLinks(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : t.links.loadFailed);
@@ -93,25 +108,15 @@ export default function LinksPage() {
   async function handleCreateLink(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const token = getToken();
-    if (!token) {
-      router.push('/login');
-      return;
-    }
-
     setError('');
     setIsCreating(true);
 
     try {
-      const response = await apiRequest<CreateLinkResponse>('/links', {
-        method: 'POST',
-        token,
-        body: {
+      const response = await linksService.create({
           originalUrl,
           title: title.trim() ? title.trim() : undefined,
           customAlias: customAlias.trim() ? customAlias.trim() : undefined,
           expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
-        },
       });
 
       setLinks((currentLinks) => [response.link, ...currentLinks]);
@@ -133,12 +138,6 @@ export default function LinksPage() {
       return;
     }
 
-    const token = getToken();
-    if (!token) {
-      router.push('/login');
-      return;
-    }
-
     const nextStatus: LinkStatus =
       link.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE';
 
@@ -146,14 +145,7 @@ export default function LinksPage() {
     setMutatingLinkId(link.id);
 
     try {
-      const response = await apiRequest<UpdateLinkStatusResponse>(
-        `/links/${link.id}/status`,
-        {
-          method: 'PATCH',
-          token,
-          body: { status: nextStatus },
-        },
-      );
+      const response = await linksService.updateStatus(link.id, nextStatus);
 
       setLinks((currentLinks) =>
         currentLinks.map((currentLink) =>
@@ -172,12 +164,6 @@ export default function LinksPage() {
   }
 
   async function handleDeleteLink(link: LinkItem) {
-    const token = getToken();
-    if (!token) {
-      router.push('/login');
-      return;
-    }
-
     const confirmed = await confirm({
       title: t.common.delete,
       description: interpolate(t.links.deleteConfirm, {
@@ -193,10 +179,7 @@ export default function LinksPage() {
     setMutatingLinkId(link.id);
 
     try {
-      const response = await apiRequest<DeleteLinkResponse>(`/links/${link.id}`, {
-        method: 'DELETE',
-        token,
-      });
+      const response = await linksService.remove(link.id);
 
       setLinks((currentLinks) =>
         currentLinks.filter(
@@ -355,14 +338,50 @@ export default function LinksPage() {
         <Card>
           <CardHeader title={t.links.listTitle} description={t.links.listDesc} />
 
+          <div className="mt-6 grid gap-3 md:grid-cols-[1fr_150px_150px]">
+            <Input
+              aria-label={t.links.listTitle}
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
+              placeholder={t.common.search}
+            />
+            <Select
+              aria-label={t.common.status}
+              value={statusFilter}
+              onChange={(event) => {
+                setStatusFilter(event.target.value as 'ALL' | LinkStatus);
+                setPage(1);
+              }}
+            >
+              <option value="ALL">{t.common.allStatuses}</option>
+              <option value="ACTIVE">{t.status.active}</option>
+              <option value="DISABLED">{t.status.disabled}</option>
+              <option value="EXPIRED">{t.status.expired}</option>
+            </Select>
+            <Select
+              aria-label={t.common.sort}
+              value={sortBy}
+              onChange={(event) => {
+                setSortBy(event.target.value as typeof sortBy);
+                setPage(1);
+              }}
+            >
+              <option value="NEWEST">{t.common.newest}</option>
+              <option value="CLICKS">{t.common.mostClicked}</option>
+              <option value="TITLE">{t.common.title}</option>
+            </Select>
+          </div>
+
           <div className="mt-6 space-y-4">
             {links.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-950/60 p-8 text-center">
-                <p className="font-medium text-slate-200">{t.links.noLinks}</p>
-                <p className="mt-2 text-sm text-slate-500">{t.links.noLinksDesc}</p>
-              </div>
+              <EmptyState icon={Link2} title={t.links.noLinks} description={t.links.noLinksDesc} />
+            ) : filteredLinks.length === 0 ? (
+              <EmptyState title={t.common.noResults} description={t.common.adjustFilters} />
             ) : (
-              links.map((link) => {
+              visibleLinks.map((link) => {
                 const isMutating = mutatingLinkId === link.id;
                 const isActive = isLinkOperational(link.status);
                 const isExpired = link.status === 'EXPIRED';
@@ -398,78 +417,20 @@ export default function LinksPage() {
                         </p>
                       </div>
 
-                      <div className="flex shrink-0 flex-wrap gap-2">
+                      <div className="flex shrink-0 items-center gap-2">
                         <div className="rounded-xl border border-slate-800 px-3 py-2 text-sm text-slate-300">
                           {link.totalClicks} {t.common.click}
                         </div>
 
-                        <Link href={`/links/${link.id}`}>
-                          <Button size="sm">{t.common.manage}</Button>
-                        </Link>
-
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => handleCopy(link)}
-                        >
-                          {copiedShortCode === link.shortCode
-                            ? t.common.copied
-                            : t.common.copy}
-                        </Button>
-
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenQr(link)}
-                        >
-                          QR
-                        </Button>
-
-                        {isActive ? (
-                          <a
-                            href={link.shortUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="rounded-xl border border-slate-700 px-3 py-2 text-sm text-slate-200 transition hover:bg-slate-900"
-                          >
-                            {t.common.testLink}
-                          </a>
-                        ) : isExpired ? (
-                          <Link
-                            href={`/links/${link.id}`}
-                            className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200 transition hover:bg-red-500/20"
-                          >
-                            {t.common.extendExpiry}
-                          </Link>
-                        ) : (
-                          <span className="rounded-xl border border-slate-800 px-3 py-2 text-sm text-slate-600">
-                            {t.common.inactive}
-                          </span>
-                        )}
-
-                        {canToggle && (
-                          <Button
-                            variant={isActive ? 'outline' : 'secondary'}
-                            size="sm"
-                            onClick={() => handleToggleStatus(link)}
-                            disabled={isMutating}
-                          >
-                            {isMutating
-                              ? t.common.processing
-                              : isActive
-                                ? t.links.deactivate
-                                : t.links.activate}
-                          </Button>
-                        )}
-
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onClick={() => handleDeleteLink(link)}
-                          disabled={isMutating}
-                        >
-                          {t.common.delete}
-                        </Button>
+                        <Link href={`/links/${link.id}`}><Button size="sm">{t.common.manage}</Button></Link>
+                        <DropdownMenu label={t.common.actions}>
+                          <DropdownItem onClick={() => handleCopy(link)}>{copiedShortCode === link.shortCode ? t.common.copied : t.common.copy}</DropdownItem>
+                          <DropdownItem onClick={() => handleOpenQr(link)}>QR</DropdownItem>
+                          {isActive && <DropdownItem onClick={() => window.open(link.shortUrl, '_blank', 'noopener,noreferrer')}>{t.common.testLink}</DropdownItem>}
+                          {isExpired && <DropdownItem onClick={() => router.push(`/links/${link.id}`)}>{t.common.extendExpiry}</DropdownItem>}
+                          {canToggle && <DropdownItem onClick={() => handleToggleStatus(link)}>{isMutating ? t.common.processing : isActive ? t.links.deactivate : t.links.activate}</DropdownItem>}
+                          <DropdownItem danger onClick={() => handleDeleteLink(link)}>{t.common.delete}</DropdownItem>
+                        </DropdownMenu>
                       </div>
                     </div>
                   </div>
@@ -477,6 +438,15 @@ export default function LinksPage() {
               })
             )}
           </div>
+          {filteredLinks.length > pageSize && (
+            <div className="mt-5 flex items-center justify-between border-t border-slate-800 pt-5 text-sm text-slate-400">
+              <span>{page} / {pageCount}</span>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((value) => value - 1)}>{t.common.previous}</Button>
+                <Button variant="outline" size="sm" disabled={page === pageCount} onClick={() => setPage((value) => value + 1)}>{t.common.next}</Button>
+              </div>
+            </div>
+          )}
         </Card>
       </div>
 

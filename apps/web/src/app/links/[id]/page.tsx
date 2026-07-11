@@ -22,8 +22,6 @@ import { MetricCard } from '@/components/ui/metric-card';
 import { useToast } from '@/components/ui/toast';
 import { interpolate } from '@/i18n';
 import { useLanguage } from '@/i18n/language-provider';
-import { apiRequest } from '@/lib/api';
-import { getToken } from '@/lib/auth';
 import { formatDate, formatDateTime, truncateText } from '@/lib/format';
 import {
   canToggleLinkStatus,
@@ -32,12 +30,11 @@ import {
   isLinkOperational,
 } from '@/lib/link-status';
 import { createQrCodeDataUrl } from '@/lib/qr';
+import { analyticsService } from '@/services/analytics';
+import { linksService } from '@/services/links';
 import type { DailyClick, GroupedStat, LinkAnalytics } from '@/types/analytics';
 import type {
-  DeleteLinkResponse,
   LinkStatus,
-  UpdateLinkResponse,
-  UpdateLinkStatusResponse,
 } from '@/types/links';
 
 export default function LinkDetailPage() {
@@ -59,6 +56,7 @@ export default function LinkDetailPage() {
   const [editTitle, setEditTitle] = useState('');
   const [editOriginalUrl, setEditOriginalUrl] = useState('');
   const [editExpiresAt, setEditExpiresAt] = useState('');
+  const [detailTab, setDetailTab] = useState<'overview' | 'traffic' | 'clicks' | 'settings'>('overview');
 
   const maxDailyClick = useMemo(() => {
     if (!analytics) return 0;
@@ -67,17 +65,8 @@ export default function LinkDetailPage() {
 
   useEffect(() => {
     async function loadAnalytics() {
-      const token = getToken();
-
-      if (!token) {
-        router.push('/login');
-        return;
-      }
-
       try {
-        const data = await apiRequest<LinkAnalytics>(`/analytics/links/${linkId}`, {
-          token,
-        });
+        const data = await analyticsService.link(linkId);
 
         setAnalytics(data);
         setEditTitle(data.link.title ?? '');
@@ -136,30 +125,17 @@ export default function LinkDetailPage() {
     event.preventDefault();
     if (!analytics) return;
 
-    const token = getToken();
-    if (!token) {
-      router.push('/login');
-      return;
-    }
-
     setError('');
     setIsSavingEdit(true);
 
     try {
-      const response = await apiRequest<UpdateLinkResponse>(
-        `/links/${analytics.link.id}`,
-        {
-          method: 'PATCH',
-          token,
-          body: {
+      const response = await linksService.update(analytics.link.id, {
             title: editTitle.trim(),
             originalUrl: editOriginalUrl.trim(),
             expiresAt: editExpiresAt
               ? new Date(editExpiresAt).toISOString()
               : null,
-          },
-        },
-      );
+      });
 
       setAnalytics((current) => {
         if (!current) return current;
@@ -185,12 +161,6 @@ export default function LinkDetailPage() {
       return;
     }
 
-    const token = getToken();
-    if (!token) {
-      router.push('/login');
-      return;
-    }
-
     const nextStatus: LinkStatus =
       analytics.link.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE';
 
@@ -198,14 +168,7 @@ export default function LinkDetailPage() {
     setIsMutating(true);
 
     try {
-      const response = await apiRequest<UpdateLinkStatusResponse>(
-        `/links/${analytics.link.id}/status`,
-        {
-          method: 'PATCH',
-          token,
-          body: { status: nextStatus },
-        },
-      );
+      const response = await linksService.updateStatus(analytics.link.id, nextStatus);
 
       setAnalytics((current) => {
         if (!current) return current;
@@ -228,12 +191,6 @@ export default function LinkDetailPage() {
   async function handleDeleteLink() {
     if (!analytics) return;
 
-    const token = getToken();
-    if (!token) {
-      router.push('/login');
-      return;
-    }
-
     const confirmed = await confirm({
       title: t.common.delete,
       description: interpolate(t.linkDetail.deleteConfirm, {
@@ -249,10 +206,7 @@ export default function LinkDetailPage() {
     setIsMutating(true);
 
     try {
-      await apiRequest<DeleteLinkResponse>(`/links/${analytics.link.id}`, {
-        method: 'DELETE',
-        token,
-      });
+      await linksService.remove(analytics.link.id);
 
       router.push('/links');
     } catch (err) {
@@ -292,10 +246,35 @@ export default function LinkDetailPage() {
     (total, item) => total + item.clicks,
     0,
   );
+  const geoStats = Object.entries(
+    analytics.recentClicks.reduce<Record<string, number>>((groups, click) => {
+      const location = [click.city, click.country].filter(Boolean).join(', ') || t.common.unknown;
+      groups[location] = (groups[location] ?? 0) + 1;
+      return groups;
+    }, {}),
+  ).map(([name, count]) => ({ name, count }));
 
   return (
     <AppShell>
-      <div className="grid gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
+      <div role="tablist" className="mb-7 flex gap-1 overflow-x-auto border-b border-slate-800">
+        {([
+          ['overview', t.linkDetail.overview],
+          ['traffic', t.linkDetail.traffic],
+          ['clicks', t.linkDetail.clicksTab],
+          ['settings', t.linkDetail.settings],
+        ] as const).map(([id, label]) => (
+          <button
+            key={id}
+            role="tab"
+            aria-selected={detailTab === id}
+            onClick={() => setDetailTab(id)}
+            className={`whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium ${detailTab === id ? 'border-cyan-400 text-cyan-200' : 'border-transparent text-slate-400 hover:text-white'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className={`grid gap-6 ${detailTab === 'settings' ? 'lg:grid-cols-[1fr_360px]' : ''} lg:items-start`}>
         <div className="min-w-0">
           <Link href="/links" className="text-sm text-cyan-300 hover:underline">
             ← {t.common.backToLinks}
@@ -340,7 +319,7 @@ export default function LinkDetailPage() {
           </div>
         </div>
 
-        <Card>
+        <Card className={detailTab === 'settings' ? '' : 'hidden'}>
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm text-slate-400">{t.linkDetail.status}</p>
@@ -455,7 +434,7 @@ export default function LinkDetailPage() {
         <ErrorBanner message={error} />
       </div>
 
-      <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className={`${detailTab === 'overview' ? 'mt-8 grid' : 'hidden'} gap-4 md:grid-cols-2 xl:grid-cols-5`}>
         <MetricCard
           title={t.linkDetail.totalClicks}
           value={analytics.link.totalClicks}
@@ -488,7 +467,7 @@ export default function LinkDetailPage() {
         />
       </div>
 
-      {qrDataUrl && (
+      {detailTab === 'overview' && qrDataUrl && (
         <div className="mt-8 grid gap-6 lg:grid-cols-[320px_1fr]">
           <Card>
             <CardHeader
@@ -528,7 +507,7 @@ export default function LinkDetailPage() {
         </div>
       )}
 
-      <Card className="mt-8">
+      <Card className={detailTab === 'overview' ? 'mt-8' : 'hidden'}>
         <CardHeader
           title={t.linkDetail.chartTitle}
           description={t.linkDetail.chartDesc}
@@ -540,7 +519,7 @@ export default function LinkDetailPage() {
         />
       </Card>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+      <div className={`${detailTab === 'traffic' ? 'mt-8 grid' : 'hidden'} gap-6 lg:grid-cols-2`}>
         <StatsPanel
           title={t.linkDetail.deviceStats}
           items={analytics.deviceStats}
@@ -561,9 +540,19 @@ export default function LinkDetailPage() {
           items={analytics.referrerStats}
           noDataLabel={t.linkDetail.noData}
         />
+        <StatsPanel
+          title={t.linkDetail.utmStats}
+          items={analytics.utmSourceStats ?? []}
+          noDataLabel={t.linkDetail.noData}
+        />
+        <StatsPanel
+          title={t.linkDetail.geoStats}
+          items={geoStats}
+          noDataLabel={t.linkDetail.noData}
+        />
       </div>
 
-      <Card className="mt-8">
+      <Card className={detailTab === 'clicks' ? 'mt-8' : 'hidden'}>
         <CardHeader
           title={t.linkDetail.recentClicks}
           description={t.linkDetail.recentClicksDesc}

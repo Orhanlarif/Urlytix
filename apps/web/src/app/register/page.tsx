@@ -9,12 +9,7 @@ import { Input } from '@/components/ui/input';
 import { LanguageToggle } from '@/components/ui/language-toggle';
 import { Logo } from '@/components/ui/logo';
 import { useLanguage } from '@/i18n/language-provider';
-import { apiRequest } from '@/lib/api';
-import { saveToken } from '@/lib/auth';
-
-type AuthResponse = {
-  accessToken: string;
-};
+import { authService } from '@/services/auth';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -32,17 +27,13 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      const response = await apiRequest<AuthResponse>('/auth/register', {
-        method: 'POST',
-        body: {
-          name: name.trim() || undefined,
-          email,
-          password,
-        },
+      await authService.register({
+        name: name.trim() || undefined,
+        email,
+        password,
       });
-
-      saveToken(response.accessToken);
       router.push('/dashboard');
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : t.auth.registerFailed);
     } finally {
@@ -94,7 +85,7 @@ export default function RegisterPage() {
             placeholder="••••••••"
             type="password"
             required
-            minLength={6}
+            minLength={12}
             autoComplete="new-password"
             hint={t.auth.passwordHint}
           />

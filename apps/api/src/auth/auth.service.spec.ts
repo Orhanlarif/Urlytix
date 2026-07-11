@@ -17,6 +17,11 @@ describe('AuthService', () => {
       findUnique: jest.fn(),
       create: jest.fn(),
     },
+    refreshSession: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      updateMany: jest.fn(),
+    },
   };
 
   const jwtService = {

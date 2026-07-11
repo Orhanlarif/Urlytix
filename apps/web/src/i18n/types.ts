@@ -30,10 +30,25 @@ export type Translation = {
     copyLink: string;
     inactive: string;
     extendExpiry: string;
+    search: string;
+    status: string;
+    allStatuses: string;
+    sort: string;
+    newest: string;
+    mostClicked: string;
+    title: string;
+    noResults: string;
+    adjustFilters: string;
+    actions: string;
+    previous: string;
+    next: string;
   };
   nav: {
     dashboard: string;
     links: string;
+    analytics: string;
+    settings: string;
+    account: string;
     tagline: string;
   };
   landing: {
@@ -170,6 +185,10 @@ export type Translation = {
     enable: string;
   };
   linkDetail: {
+    overview: string;
+    traffic: string;
+    clicksTab: string;
+    settings: string;
     badge: string;
     loading: string;
     loadFailed: string;
@@ -219,6 +238,8 @@ export type Translation = {
     browserStats: string;
     osStats: string;
     referrerStats: string;
+    utmStats: string;
+    geoStats: string;
     recentClicks: string;
     recentClicksDesc: string;
     noClicks: string;

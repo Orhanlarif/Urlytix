@@ -11,6 +11,7 @@ export class AppConfigService implements OnModuleInit {
         'JWT_SECRET',
         'DATABASE_URL',
         'SHORT_URL_BASE',
+        'REDIS_URL',
       ] as const;
 
       for (const key of required) {
@@ -55,5 +56,9 @@ export class AppConfigService implements OnModuleInit {
 
   get jwtSecret(): string {
     return this.configService.get<string>('JWT_SECRET') ?? 'dev_secret';
+  }
+
+  get redisUrl(): string | undefined {
+    return this.configService.get<string>('REDIS_URL') || undefined;
   }
 }

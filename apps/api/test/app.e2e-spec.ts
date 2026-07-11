@@ -10,7 +10,7 @@ describe('Urlytics API (e2e)', () => {
   let shortCode: string;
 
   const testEmail = `e2e-${Date.now()}@urlytics.test`;
-  const testPassword = 'testpass123';
+  const testPassword = 'Testpass123!';
 
   beforeAll(async () => {
     app = await createTestApp();
@@ -94,8 +94,9 @@ describe('Urlytics API (e2e)', () => {
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(200)
       .expect((response) => {
-        expect(Array.isArray(response.body)).toBe(true);
-        expect(response.body.length).toBeGreaterThan(0);
+        expect(Array.isArray(response.body.data)).toBe(true);
+        expect(response.body.data.length).toBeGreaterThan(0);
+        expect(response.body.meta.total).toBeGreaterThan(0);
       });
   });
 

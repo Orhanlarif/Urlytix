@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import type { Request } from 'express';
 import { AppConfigService } from '../config/app-config.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ClickIngestionService } from './click-ingestion.service';
 import { LinkRedirectException } from './redirect-error.page';
 import { LinksService } from './links.service';
 
@@ -28,6 +29,12 @@ describe('LinksService', () => {
     ),
   };
 
+  const clickIngestion = {
+    enqueue: jest.fn(async (payload: Record<string, unknown>) => {
+      await prisma.clickEvent.create({ data: payload });
+    }),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
     prisma.link.findUnique.mockReset();
@@ -40,6 +47,7 @@ describe('LinksService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         LinksService,
+        { provide: ClickIngestionService, useValue: clickIngestion },
         { provide: PrismaService, useValue: prisma },
         { provide: AppConfigService, useValue: appConfig },
       ],

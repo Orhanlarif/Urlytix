@@ -1,16 +1,7 @@
-export type LinkStatus = 'ACTIVE' | 'DISABLED' | 'EXPIRED';
+import type { LinkSummary } from '@urlytics/shared';
 
-export type LinkItem = {
-  id: string;
-  originalUrl: string;
-  shortCode: string;
-  shortUrl: string;
-  title: string | null;
-  status: LinkStatus;
-  expiresAt: string | null;
-  totalClicks: number;
-  createdAt: string;
-};
+export type { LinkStatus } from '@urlytics/shared';
+export type LinkItem = LinkSummary;
 
 export type CreateLinkResponse = {
   message: string;

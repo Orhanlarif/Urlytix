@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { TOKEN_COOKIE } from '@/lib/auth';
 
-const protectedPrefixes = ['/dashboard', '/links'];
+const protectedPrefixes = ['/dashboard', '/links', '/analytics', '/settings'];
 const authPaths = ['/login', '/register'];
 
 function isProtectedPath(pathname: string) {
@@ -11,11 +11,7 @@ function isProtectedPath(pathname: string) {
   );
 }
 
-function isAuthPath(pathname: string) {
-  return authPaths.includes(pathname);
-}
-
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const token = request.cookies.get(TOKEN_COOKIE)?.value;
   const { pathname } = request.nextUrl;
 
@@ -26,7 +22,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (isAuthPath(pathname) && token) {
+  if (authPaths.includes(pathname) && token) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
@@ -34,5 +30,12 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/links/:path*', '/login', '/register'],
+  matcher: [
+    '/dashboard/:path*',
+    '/links/:path*',
+    '/analytics/:path*',
+    '/settings/:path*',
+    '/login',
+    '/register',
+  ],
 };

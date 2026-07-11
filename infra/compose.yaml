@@ -1,0 +1,120 @@
+name: ${COMPOSE_PROJECT_NAME:-urlytics}
+
+x-api-environment: &api-environment
+  NODE_ENV: production
+  PORT: "4000"
+  DATABASE_URL: postgresql://${POSTGRES_USER:-urlytics}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-urlytics}
+  JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+  CORS_ORIGINS: ${CORS_ORIGINS:?set CORS_ORIGINS}
+  SHORT_URL_BASE: ${SHORT_URL_BASE:?set SHORT_URL_BASE}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-urlytics}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-urlytics}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - backups:/backups
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-urlytics} -d ${POSTGRES_DB:-urlytics}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [private]
+    security_opt: [no-new-privileges:true]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--requirepass",
+        "${REDIS_PASSWORD:?set REDIS_PASSWORD}",
+      ]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", 'redis-cli -a "$${REDIS_PASSWORD}" ping | grep PONG']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD}
+    networks: [private]
+    security_opt: [no-new-privileges:true]
+
+  migrate:
+    profiles: [release]
+    image: ${MIGRATION_IMAGE:-urlytics-migrate}:${IMAGE_TAG:-local}
+    build:
+      context: ..
+      dockerfile: infra/docker/api.Dockerfile
+      target: migration
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-urlytics}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-urlytics}
+    command: ["migrate", "deploy", "--schema", "apps/api/prisma/schema.prisma"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [private]
+    restart: "no"
+    security_opt: [no-new-privileges:true]
+
+  api:
+    image: ${API_IMAGE:-urlytics-api}:${IMAGE_TAG:-local}
+    build:
+      context: ..
+      dockerfile: infra/docker/api.Dockerfile
+    restart: unless-stopped
+    environment: *api-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+    expose: ["4000"]
+    networks: [private, edge]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+
+  web:
+    image: ${WEB_IMAGE:-urlytics-web}:${IMAGE_TAG:-local}
+    build:
+      context: ..
+      dockerfile: infra/docker/web.Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?set NEXT_PUBLIC_API_URL}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?set NEXT_PUBLIC_API_URL}
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${WEB_BIND_ADDRESS:-127.0.0.1}:${WEB_PORT:-3000}:3000"
+    networks: [edge]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+
+networks:
+  edge:
+  private:
+    internal: true
+
+volumes:
+  postgres_data:
+  redis_data:
+  backups:

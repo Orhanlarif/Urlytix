@@ -6,6 +6,7 @@ type ApiOptions = {
   method?: string;
   body?: unknown;
   token?: string | null;
+  retryAfterRefresh?: boolean;
 };
 
 export class ApiError extends Error {
@@ -35,6 +36,7 @@ export async function apiRequest<T>(
 
   const response = await fetch(`${API_URL}${path}`, {
     method: options.method ?? 'GET',
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       ...(options.token
@@ -47,6 +49,24 @@ export async function apiRequest<T>(
   });
 
   const data = await response.json().catch(() => null);
+
+  if (
+    response.status === 401 &&
+    options.retryAfterRefresh !== false &&
+    !path.startsWith('/auth/')
+  ) {
+    const refreshResponse = await fetch(`${API_URL}/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+
+    if (refreshResponse.ok) {
+      return apiRequest<T>(path, {
+        ...options,
+        retryAfterRefresh: false,
+      });
+    }
+  }
 
   if (response.status === 401) {
     logout('/login?expired=1');

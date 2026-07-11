@@ -21,20 +21,50 @@ enum DeviceType {
   UNKNOWN
 }
 
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+}
+
 model User {
   id           String   @id @default(uuid())
   name         String?
   email        String   @unique
   passwordHash String
+  timezone     String   @default("UTC")
+  locale       String   @default("en")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  links Link[]
+  links           Link[]
+  refreshSessions RefreshSession[]
+  memberships     Membership[]
+  apiKeys         ApiKey[]
+  auditLogs       AuditLog[]
 }
 
 model Link {
   id          String     @id @default(uuid())
   userId      String
+  workspaceId String?
   originalUrl String
   shortCode   String     @unique
   title       String?
@@ -44,7 +74,27 @@ model Link {
   updatedAt   DateTime   @updatedAt
 
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace?   @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   clickEvents ClickEvent[]
+  dailyStats  DailyLinkStat[]
+
+  @@index([userId])
+  @@index([workspaceId])
+}
+
+model DailyLinkStat {
+  id          String   @id @default(uuid())
+  linkId      String
+  date        DateTime @db.Date
+  totalClicks Int      @default(0)
+  botClicks   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  link Link @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  @@unique([linkId, date])
+  @@index([date])
 }
 
 model ClickEvent {
@@ -70,4 +120,173 @@ model ClickEvent {
   @@index([clickedAt])
   @@index([country])
   @@index([deviceType])
+}
+
+model RefreshSession {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  userAgent String?
+  ipHash    String?
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Workspace {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships  Membership[]
+  links        Link[]
+  subscription Subscription?
+  usageRecords UsageRecord[]
+  apiKeys      ApiKey[]
+  webhooks     Webhook[]
+  domains      Domain[]
+  auditLogs    AuditLog[]
+}
+
+model Domain {
+  id                String    @id @default(uuid())
+  workspaceId       String
+  hostname          String    @unique
+  verificationToken String
+  verifiedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+model Membership {
+  id          String        @id @default(uuid())
+  userId      String
+  workspaceId String
+  role        WorkspaceRole @default(MEMBER)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@index([workspaceId])
+}
+
+model Plan {
+  id            String   @id @default(uuid())
+  code          String   @unique
+  name          String
+  monthlyPrice  Int      @default(0)
+  linkLimit     Int?
+  clickLimit    Int?
+  apiKeyLimit   Int?
+  webhookLimit  Int?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id                 String             @id @default(uuid())
+  workspaceId        String             @unique
+  planId             String
+  status             SubscriptionStatus @default(TRIALING)
+  providerCustomerId String?
+  providerPriceId    String?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd  Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  plan      Plan      @relation(fields: [planId], references: [id])
+
+  @@index([planId])
+  @@index([status])
+}
+
+model UsageRecord {
+  id          String   @id @default(uuid())
+  workspaceId String
+  metric      String
+  quantity    Int      @default(0)
+  periodStart DateTime
+  periodEnd   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, metric, periodStart])
+  @@index([workspaceId, periodEnd])
+}
+
+model ApiKey {
+  id          String    @id @default(uuid())
+  userId      String
+  workspaceId String
+  name        String
+  prefix      String
+  keyHash     String    @unique
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([userId])
+}
+
+model Webhook {
+  id          String    @id @default(uuid())
+  workspaceId String
+  url         String
+  secretHash  String
+  events      String[]
+  active      Boolean   @default(true)
+  lastSentAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+model AuditLog {
+  id          String      @id @default(uuid())
+  userId      String?
+  workspaceId String?
+  action      AuditAction
+  entityType  String
+  entityId    String?
+  metadata    Json?
+  ipHash      String?
+  createdAt   DateTime    @default(now())
+
+  user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([workspaceId, createdAt])
+  @@index([entityType, entityId])
 }

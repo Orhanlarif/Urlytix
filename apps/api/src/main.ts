@@ -1,6 +1,7 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
@@ -17,8 +18,21 @@ async function bootstrap() {
 
   app.use(
     helmet({
-      contentSecurityPolicy: false,
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: appConfig.isProduction
+            ? ["'none'"]
+            : ["'self'", "'unsafe-inline'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", 'data:'],
+          objectSrc: ["'none'"],
+          frameAncestors: ["'none'"],
+          baseUri: ["'none'"],
+        },
+      },
       crossOriginEmbedderPolicy: false,
+      referrerPolicy: { policy: 'no-referrer' },
     }),
   );
 
@@ -36,6 +50,18 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
+  if (!appConfig.isProduction) {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('Urlytics API')
+      .setDescription('Link management, analytics and workspace API')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .addCookieAuth('urlytics_access')
+      .build();
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('docs', app, document, { useGlobalPrefix: true });
+  }
 
   await app.listen(appConfig.port);
 }

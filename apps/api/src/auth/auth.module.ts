@@ -19,7 +19,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
       useFactory: (appConfig: AppConfigService) => ({
         secret: appConfig.jwtSecret,
         signOptions: {
-          expiresIn: '7d',
+          expiresIn: '15m',
         },
       }),
     }),

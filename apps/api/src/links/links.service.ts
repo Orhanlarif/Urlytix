@@ -7,11 +7,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { createHash, randomBytes, randomUUID } from 'crypto';
+import { lookup } from 'dns/promises';
 import type { Request } from 'express';
+import { isIP } from 'net';
 import { AppConfigService } from '../config/app-config.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateLinkDto } from './dto/create-link.dto';
+import { ListLinksQueryDto } from './dto/list-links-query.dto';
 import { UpdateLinkDto } from './dto/update-link.dto';
+import { ClickIngestionService } from './click-ingestion.service';
 import { LinkRedirectException } from './redirect-error.page';
 
 type LinkStatus = 'ACTIVE' | 'DISABLED' | 'EXPIRED';
@@ -36,9 +40,11 @@ export class LinksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly appConfig: AppConfigService,
+    private readonly clickIngestion: ClickIngestionService,
   ) {}
 
   async createLink(userId: string, createLinkDto: CreateLinkDto) {
+    await this.validateDestinationUrl(createLinkDto.originalUrl);
     const shortCode = createLinkDto.customAlias
       ? createLinkDto.customAlias
       : await this.generateUniqueShortCode();
@@ -87,6 +93,7 @@ export class LinksService {
     } = {};
 
     if (updateLinkDto.originalUrl !== undefined) {
+      await this.validateDestinationUrl(updateLinkDto.originalUrl);
       data.originalUrl = updateLinkDto.originalUrl;
     }
 
@@ -130,25 +137,65 @@ export class LinksService {
     };
   }
 
-  async getUserLinks(userId: string) {
-    const links = await this.prisma.link.findMany({
-      where: {
-        userId,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      select: {
-        ...this.linkSelectFields(),
-        _count: {
-          select: {
-            clickEvents: true,
+  async getUserLinks(userId: string, query: ListLinksQueryDto) {
+    const where = {
+      userId,
+      status: query.status,
+      ...(query.search
+        ? {
+            OR: [
+              {
+                title: { contains: query.search, mode: 'insensitive' as const },
+              },
+              {
+                originalUrl: {
+                  contains: query.search,
+                  mode: 'insensitive' as const,
+                },
+              },
+              {
+                shortCode: {
+                  contains: query.search,
+                  mode: 'insensitive' as const,
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+    const [links, total] = await Promise.all([
+      this.prisma.link.findMany({
+        where,
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip: (query.page - 1) * query.limit,
+        take: query.limit,
+        select: {
+          ...this.linkSelectFields(),
+          _count: {
+            select: {
+              clickEvents: true,
+            },
           },
         },
-      },
-    });
+      }),
+      this.prisma.link.count({ where }),
+    ]);
+    const items = links.map((link) =>
+      this.formatLink(link, link._count.clickEvents),
+    );
 
-    return links.map((link) => this.formatLink(link, link._count.clickEvents));
+    return {
+      items,
+      data: items,
+      meta: {
+        page: query.page,
+        limit: query.limit,
+        total,
+        totalPages: Math.ceil(total / query.limit),
+      },
+    };
   }
 
   async getUserLinkById(userId: string, linkId: string) {
@@ -386,21 +433,101 @@ export class LinksService {
 
     const parsedDevice = this.parseUserAgent(String(userAgent));
 
-    await this.prisma.clickEvent.create({
-      data: {
-        linkId,
-        visitorId,
-        ipHash: ip ? this.hashIp(ip) : null,
-        referrer: typeof referrer === 'string' ? referrer : null,
-        utmSource: this.getQueryValue(query.utm_source),
-        utmMedium: this.getQueryValue(query.utm_medium),
-        utmCampaign: this.getQueryValue(query.utm_campaign),
-        deviceType: parsedDevice.deviceType,
-        browser: parsedDevice.browser,
-        os: parsedDevice.os,
-        isBot: parsedDevice.isBot,
-      },
+    await this.clickIngestion.enqueue({
+      linkId,
+      visitorId,
+      ipHash: ip ? this.hashIp(ip) : null,
+      country: this.getHeaderValue(request, [
+        'x-vercel-ip-country',
+        'cf-ipcountry',
+        'x-country-code',
+      ]),
+      city: this.getHeaderValue(request, [
+        'x-vercel-ip-city',
+        'cf-ipcity',
+        'x-city',
+      ]),
+      referrer: typeof referrer === 'string' ? referrer : null,
+      utmSource: this.getQueryValue(query.utm_source),
+      utmMedium: this.getQueryValue(query.utm_medium),
+      utmCampaign: this.getQueryValue(query.utm_campaign),
+      deviceType: parsedDevice.deviceType,
+      browser: parsedDevice.browser,
+      os: parsedDevice.os,
+      isBot: parsedDevice.isBot,
     });
+  }
+
+  private async validateDestinationUrl(value: string) {
+    let url: URL;
+    try {
+      url = new URL(value);
+    } catch {
+      throw new BadRequestException('Geçerli bir URL gir.');
+    }
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      throw new BadRequestException('Yalnızca HTTP ve HTTPS URL kabul edilir.');
+    }
+    const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+    if (
+      hostname === 'localhost' ||
+      hostname.endsWith('.localhost') ||
+      hostname.endsWith('.local') ||
+      this.isPrivateAddress(hostname)
+    ) {
+      throw new BadRequestException(
+        'Yerel veya özel ağ hedefleri kabul edilmez.',
+      );
+    }
+    try {
+      const addresses = await lookup(hostname, { all: true, verbatim: true });
+      if (
+        addresses.length === 0 ||
+        addresses.some((entry) => this.isPrivateAddress(entry.address))
+      ) {
+        throw new BadRequestException(
+          'Yerel veya özel ağ hedefleri kabul edilmez.',
+        );
+      }
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('URL alan adı çözümlenemedi.');
+    }
+  }
+
+  private isPrivateAddress(address: string) {
+    if (!isIP(address)) {
+      return false;
+    }
+    if (address.includes(':')) {
+      const normalized = address.toLowerCase();
+      return (
+        normalized === '::1' ||
+        normalized === '::' ||
+        normalized.startsWith('fc') ||
+        normalized.startsWith('fd') ||
+        normalized.startsWith('fe8') ||
+        normalized.startsWith('fe9') ||
+        normalized.startsWith('fea') ||
+        normalized.startsWith('feb') ||
+        normalized.startsWith('::ffff:127.') ||
+        normalized.startsWith('::ffff:10.') ||
+        normalized.startsWith('::ffff:192.168.')
+      );
+    }
+    const [a, b] = address.split('.').map(Number);
+    return (
+      a === 0 ||
+      a === 10 ||
+      a === 127 ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 100 && b >= 64 && b <= 127) ||
+      a >= 224
+    );
   }
 
   private async generateUniqueShortCode() {
@@ -458,6 +585,20 @@ export class LinksService {
       return value[0];
     }
 
+    return null;
+  }
+
+  private getHeaderValue(request: Request, names: string[]) {
+    for (const name of names) {
+      const value = request.headers[name];
+      if (typeof value === 'string' && value.trim()) {
+        try {
+          return decodeURIComponent(value.trim()).slice(0, 100);
+        } catch {
+          return value.trim().slice(0, 100);
+        }
+      }
+    }
     return null;
   }
 

@@ -19,12 +19,15 @@ export class JwtAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
     const authHeader = request.headers.authorization;
+    const cookies = request.cookies as
+      Record<string, string | undefined> | undefined;
+    const token = authHeader?.startsWith('Bearer ')
+      ? authHeader.slice(7)
+      : cookies?.access_token;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!token) {
       throw new UnauthorizedException('Token bulunamadı.');
     }
-
-    const token = authHeader.split(' ')[1];
 
     try {
       const payload = await this.jwtService.verifyAsync<JwtPayload>(token);

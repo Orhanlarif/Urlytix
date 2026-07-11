@@ -1,31 +1,7 @@
-
----
-
-# 📊 4. PROJECT_STATUS.md
-
-```md
 # Project Status
 
-## ✅ Completed
+The canonical product status, roadmap, known constraints, and release gates are kept
+in [`ROADMAP.md`](ROADMAP.md).
 
-- Authentication system (JWT)
-- User registration & login
-- Link creation
-- Basic analytics tracking
-- QR code generation
-
-## 🚧 In Progress
-
-- Link management UI improvements
-
-## ❌ Pending
-
-- Link update/edit feature
-- Link expiration
-- Password protected links
-- Unique visitor tracking
-- Advanced analytics dashboard
-
-## ⚠️ Known Issues
-
-- Analytics aggregation needs optimization
+This compatibility file intentionally contains no second status list. Update
+`ROADMAP.md` whenever product scope or delivery state changes.

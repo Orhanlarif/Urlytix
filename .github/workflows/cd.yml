@@ -1,0 +1,122 @@
+name: CD
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Deployment environment
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      image_tag:
+        description: Immutable commit SHA to build (defaults to selected commit)
+        required: false
+        type: string
+
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_TAG: ${{ inputs.image_tag || github.sha }}
+  REGISTRY: ghcr.io
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - name: api
+            dockerfile: infra/docker/api.Dockerfile
+            target: runtime
+            suffix: api
+          - name: migrate
+            dockerfile: infra/docker/api.Dockerfile
+            target: migration
+            suffix: migrate
+          - name: web
+            dockerfile: infra/docker/web.Dockerfile
+            target: runtime
+            suffix: web
+    steps:
+      - name: Validate immutable image tag
+        run: |
+          if ! [[ "$IMAGE_TAG" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "image_tag must be a full 40-character commit SHA" >&2
+            exit 1
+          fi
+
+      - name: Checkout selected revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.IMAGE_TAG }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Authenticate to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push immutable image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          target: ${{ matrix.target }}
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.suffix }}:${{ env.IMAGE_TAG }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+          provenance: mode=max
+          sbom: true
+
+  deploy:
+    name: Deploy ${{ inputs.environment }}
+    needs: build
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+    steps:
+      - name: Validate deployment configuration
+        env:
+          DEPLOY_HOOK_URL: ${{ vars.DEPLOY_HOOK_URL }}
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+        run: |
+          test -n "$DEPLOY_HOOK_URL"
+          test -n "$DEPLOY_TOKEN"
+
+      - name: Request guarded deployment
+        env:
+          DEPLOY_HOOK_URL: ${{ vars.DEPLOY_HOOK_URL }}
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+          DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          payload="$(jq -n \
+            --arg environment "$DEPLOY_ENVIRONMENT" \
+            --arg imageTag "$IMAGE_TAG" \
+            --arg repository "$REPOSITORY" \
+            '{environment: $environment, imageTag: $imageTag, repository: $repository}')"
+          curl --fail-with-body --silent --show-error \
+            --retry 3 --retry-all-errors \
+            -X POST "$DEPLOY_HOOK_URL" \
+            -H "Authorization: Bearer $DEPLOY_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "$payload"

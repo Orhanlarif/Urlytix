@@ -1,7 +1,9 @@
-export type DailyClick = {
-  date: string;
-  clicks: number;
-};
+import type {
+  DailyClicks,
+  GroupedStat as SharedGroupedStat,
+} from '@urlytics/shared';
+
+export type DailyClick = DailyClicks;
 
 export type TopLink = {
   id: string;
@@ -40,10 +42,7 @@ export type DashboardOverview = {
   recentClicks: RecentClick[];
 };
 
-export type GroupedStat = {
-  name: string;
-  count: number;
-};
+export type GroupedStat = SharedGroupedStat;
 
 export type LinkAnalyticsClick = {
   id: string;

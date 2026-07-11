@@ -54,17 +54,44 @@ jobs:
       - name: Generate Prisma client
         run: pnpm --filter api exec prisma generate
 
-      - name: Run database migrations
+      - name: Validate Prisma schema
+        run: pnpm --filter api exec prisma validate
+
+      - name: Validate migrations on empty database
         run: pnpm --filter api exec prisma migrate deploy
+
+      - name: Verify migration status
+        run: pnpm --filter api exec prisma migrate status
+
+      - name: Validate OpenAPI YAML
+        run: >-
+          ruby -e "require 'yaml';
+          document = YAML.safe_load_file('docs/openapi.yaml', aliases: false);
+          abort('missing openapi version') unless document['openapi']"
 
       - name: Lint
         run: pnpm lint
 
       - name: Unit tests
-        run: pnpm --filter api test
+        run: pnpm test
 
       - name: E2E tests
         run: pnpm --filter api test:e2e
 
       - name: Build
         run: pnpm build
+
+      - name: Build production API image
+        run: docker build --file infra/docker/api.Dockerfile --target runtime --tag urlytics-api:ci .
+
+      - name: Build production migration image
+        run: docker build --file infra/docker/api.Dockerfile --target migration --tag urlytics-migrate:ci .
+
+      - name: Build production web image
+        run: >-
+          docker build
+          --build-arg NEXT_PUBLIC_API_URL=http://localhost:4000/api
+          --file infra/docker/web.Dockerfile
+          --target runtime
+          --tag urlytics-web:ci
+          .

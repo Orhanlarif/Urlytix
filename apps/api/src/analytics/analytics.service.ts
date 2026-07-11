@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { AppConfigService } from '../config/app-config.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { AnalyticsQueryDto } from './dto/analytics-query.dto';
 
 type GroupedItem = {
   name: string;
@@ -18,9 +19,9 @@ export class AnalyticsService {
     private readonly appConfig: AppConfigService,
   ) {}
 
-  async getDashboardOverview(userId: string) {
+  async getDashboardOverview(userId: string, query: AnalyticsQueryDto) {
     const startOfToday = this.getStartOfToday();
-    const last14DaysStart = this.getDaysAgo(13);
+    const range = this.resolveRange(query);
 
     const [totalLinks, totalClicks, clicksToday, topLinks, recentClicks] =
       await Promise.all([
@@ -105,13 +106,14 @@ export class AnalyticsService {
         }),
       ]);
 
-    const last14DaysClicks = await this.prisma.clickEvent.findMany({
+    const rangeClicks = await this.prisma.clickEvent.findMany({
       where: {
         link: {
           userId,
         },
         clickedAt: {
-          gte: last14DaysStart,
+          gte: range.from,
+          lte: range.to,
         },
       },
       select: {
@@ -122,7 +124,11 @@ export class AnalyticsService {
       },
     });
 
-    const dailyClicks = this.buildDailyClicks(last14DaysClicks, 14);
+    const dailyClicks = this.buildDailyClicks(
+      rangeClicks,
+      range.days,
+      range.to,
+    );
 
     return {
       totalLinks,
@@ -142,7 +148,11 @@ export class AnalyticsService {
     };
   }
 
-  async getLinkAnalytics(userId: string, linkId: string) {
+  async getLinkAnalytics(
+    userId: string,
+    linkId: string,
+    query: AnalyticsQueryDto,
+  ) {
     const link = await this.prisma.link.findUnique({
       where: {
         id: linkId,
@@ -166,79 +176,120 @@ export class AnalyticsService {
       );
     }
 
-    const last14DaysStart = this.getDaysAgo(13);
+    const range = this.resolveRange(query);
+    const where = {
+      linkId,
+      clickedAt: { gte: range.from, lte: range.to },
+    };
 
-    const [allClicks, last14DaysClicks, recentClicks, uniqueVisitorGroups] =
-      await Promise.all([
-        this.prisma.clickEvent.findMany({
-          where: {
-            linkId,
-          },
-          select: {
-            deviceType: true,
-            browser: true,
-            os: true,
-            referrer: true,
-            utmSource: true,
-            utmMedium: true,
-            utmCampaign: true,
-            isBot: true,
-            clickedAt: true,
-            country: true,
-            city: true,
-          },
-        }),
+    const [
+      rangeClicks,
+      recentClicks,
+      uniqueVisitorGroups,
+      deviceGroups,
+      browserGroups,
+      osGroups,
+      referrerGroups,
+      countryGroups,
+      cityGroups,
+      utmSourceGroups,
+      utmMediumGroups,
+      utmCampaignGroups,
+      botClicks,
+      humanClicks,
+    ] = await Promise.all([
+      this.prisma.clickEvent.findMany({
+        where,
+        select: {
+          clickedAt: true,
+        },
+        orderBy: {
+          clickedAt: 'asc',
+        },
+      }),
 
-        this.prisma.clickEvent.findMany({
-          where: {
-            linkId,
-            clickedAt: {
-              gte: last14DaysStart,
-            },
-          },
-          select: {
-            clickedAt: true,
-          },
-          orderBy: {
-            clickedAt: 'asc',
-          },
-        }),
+      this.prisma.clickEvent.findMany({
+        where: {
+          linkId,
+        },
+        orderBy: {
+          clickedAt: 'desc',
+        },
+        take: 20,
+        select: {
+          id: true,
+          clickedAt: true,
+          country: true,
+          city: true,
+          deviceType: true,
+          browser: true,
+          os: true,
+          referrer: true,
+          utmSource: true,
+          utmMedium: true,
+          utmCampaign: true,
+          isBot: true,
+        },
+      }),
 
-        this.prisma.clickEvent.findMany({
-          where: {
-            linkId,
+      this.prisma.clickEvent.groupBy({
+        by: ['visitorId'],
+        where: {
+          ...where,
+          visitorId: {
+            not: null,
           },
-          orderBy: {
-            clickedAt: 'desc',
-          },
-          take: 20,
-          select: {
-            id: true,
-            clickedAt: true,
-            country: true,
-            city: true,
-            deviceType: true,
-            browser: true,
-            os: true,
-            referrer: true,
-            utmSource: true,
-            utmMedium: true,
-            utmCampaign: true,
-            isBot: true,
-          },
-        }),
-
-        this.prisma.clickEvent.groupBy({
-          by: ['visitorId'],
-          where: {
-            linkId,
-            visitorId: {
-              not: null,
-            },
-            isBot: false,
-          },
-        }),
-      ]);
+          isBot: false,
+        },
+      }),
+      this.prisma.clickEvent.groupBy({
+        by: ['deviceType'],
+        where,
+        _count: { _all: true },
+      }),
+      this.prisma.clickEvent.groupBy({
+        by: ['browser'],
+        where,
+        _count: { _all: true },
+      }),
+      this.prisma.clickEvent.groupBy({
+        by: ['os'],
+        where,
+        _count: { _all: true },
+      }),
+      this.prisma.clickEvent.groupBy({
+        by: ['referrer'],
+        where,
+        _count: { _all: true },
+      }),
+      this.prisma.clickEvent.groupBy({
+        by: ['country'],
+        where,
+        _count: { _all: true },
+      }),
+      this.prisma.clickEvent.groupBy({
+        by: ['city'],
+        where,
+        _count: { _all: true },
+      }),
+      this.prisma.clickEvent.groupBy({
+        by: ['utmSource'],
+        where,
+        _count: { _all: true },
+      }),
+      this.prisma.clickEvent.groupBy({
+        by: ['utmMedium'],
+        where,
+        _count: { _all: true },
+      }),
+      this.prisma.clickEvent.groupBy({
+        by: ['utmCampaign'],
+        where,
+        _count: { _all: true },
+      }),
+      this.prisma.clickEvent.count({ where: { ...where, isBot: true } }),
+      this.prisma.clickEvent.count({ where: { ...where, isBot: false } }),
+    ]);
 
     return {
       link: {
@@ -253,38 +304,42 @@ export class AnalyticsService {
         createdAt: link.createdAt,
       },
       uniqueVisitors: uniqueVisitorGroups.length,
-      dailyClicks: this.buildDailyClicks(last14DaysClicks, 14),
-      deviceStats: this.groupByValue(
-        allClicks.map((click) => click.deviceType),
-      ),
-      browserStats: this.groupByValue(allClicks.map((click) => click.browser)),
-      osStats: this.groupByValue(allClicks.map((click) => click.os)),
-      referrerStats: this.groupByValue(
-        allClicks.map((click) => this.normalizeReferrer(click.referrer)),
-      ),
-      utmSourceStats: this.groupByValue(
-        allClicks.map((click) => click.utmSource),
-      ),
+      dailyClicks: this.buildDailyClicks(rangeClicks, range.days, range.to),
+      deviceStats: this.mapGroups(deviceGroups, 'deviceType'),
+      browserStats: this.mapGroups(browserGroups, 'browser'),
+      osStats: this.mapGroups(osGroups, 'os'),
+      referrerStats: referrerGroups
+        .map((group) => ({
+          name: this.normalizeReferrer(group.referrer),
+          count: group._count._all,
+        }))
+        .sort((a, b) => b.count - a.count),
+      geoStats: {
+        countries: this.mapGroups(countryGroups, 'country'),
+        cities: this.mapGroups(cityGroups, 'city'),
+      },
+      utmStats: {
+        sources: this.mapGroups(utmSourceGroups, 'utmSource'),
+        mediums: this.mapGroups(utmMediumGroups, 'utmMedium'),
+        campaigns: this.mapGroups(utmCampaignGroups, 'utmCampaign'),
+      },
+      utmSourceStats: this.mapGroups(utmSourceGroups, 'utmSource'),
       botStats: {
-        botClicks: allClicks.filter((click) => click.isBot).length,
-        humanClicks: allClicks.filter((click) => !click.isBot).length,
+        botClicks,
+        humanClicks,
       },
       recentClicks,
     };
   }
 
-  private groupByValue(values: Array<string | null>): GroupedItem[] {
-    const result = new Map<string, number>();
-
-    for (const value of values) {
-      const key = value && value.trim().length > 0 ? value : 'Unknown';
-      result.set(key, (result.get(key) ?? 0) + 1);
-    }
-
-    return Array.from(result.entries())
-      .map(([name, count]) => ({
-        name,
-        count,
+  private mapGroups<K extends string>(
+    groups: Array<Record<K, string | null> & { _count: { _all: number } }>,
+    key: K,
+  ): GroupedItem[] {
+    return groups
+      .map((group) => ({
+        name: group[key]?.trim() || 'Unknown',
+        count: group._count._all,
       }))
       .sort((a, b) => b.count - a.count);
   }
@@ -307,6 +362,7 @@ export class AnalyticsService {
       clickedAt: Date;
     }>,
     days: number,
+    endDate = new Date(),
   ) {
     const result: Array<{
       date: string;
@@ -321,7 +377,8 @@ export class AnalyticsService {
     }
 
     for (let i = days - 1; i >= 0; i--) {
-      const date = this.getDaysAgo(i);
+      const date = new Date(endDate);
+      date.setDate(date.getDate() - i);
       const key = date.toISOString().slice(0, 10);
 
       result.push({
@@ -344,5 +401,20 @@ export class AnalyticsService {
     date.setDate(date.getDate() - days);
     date.setHours(0, 0, 0, 0);
     return date;
+  }
+
+  private resolveRange(query: AnalyticsQueryDto) {
+    const to = query.to ? new Date(query.to) : new Date();
+    to.setHours(23, 59, 59, 999);
+    const from = query.from ? new Date(query.from) : new Date(to);
+    if (!query.from) {
+      from.setDate(from.getDate() - (query.days - 1));
+    }
+    from.setHours(0, 0, 0, 0);
+    const days = Math.min(
+      365,
+      Math.max(1, Math.ceil((to.getTime() - from.getTime()) / 86_400_000) + 1),
+    );
+    return { from, to, days };
   }
 }

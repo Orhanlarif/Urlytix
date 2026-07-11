@@ -11,10 +11,12 @@
     "db:logs": "docker compose logs -f",
     "db:migrate": "pnpm --filter api exec prisma migrate dev",
     "db:migrate:deploy": "pnpm --filter api exec prisma migrate deploy",
-    "lint": "pnpm --filter api lint:check && pnpm --filter web lint",
-    "test": "pnpm --filter api test",
+    "lint": "pnpm --filter @urlytics/shared lint && pnpm --filter api lint:check && pnpm --filter web lint",
+    "test": "pnpm --filter api test && pnpm --filter web test",
     "test:e2e": "pnpm --filter api test:e2e",
-    "build": "pnpm --filter api exec prisma generate && pnpm -r build",
-    "ci": "pnpm lint && pnpm test && pnpm test:e2e && pnpm build"
+    "prisma:generate": "pnpm --filter api exec prisma generate",
+    "db:validate": "pnpm --filter api exec prisma validate",
+    "build": "pnpm prisma:generate && pnpm -r build",
+    "ci": "pnpm prisma:generate && pnpm db:validate && pnpm lint && pnpm test && pnpm test:e2e && pnpm build"
   }
 }

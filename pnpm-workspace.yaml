@@ -4,6 +4,8 @@ packages:
 allowBuilds:
   '@prisma/client': true
   '@prisma/engines': true
+  '@scarf/scarf': false
+  msgpackr-extract: true
   prisma: true
   sharp: true
   unrs-resolver: true

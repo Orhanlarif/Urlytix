@@ -1,39 +1,26 @@
-const TOKEN_KEY = 'urlytics_token';
-export const TOKEN_COOKIE = 'urlytics_token';
-const TOKEN_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
+const LEGACY_TOKEN_KEY = 'urlytics_token';
+export const TOKEN_COOKIE = 'access_token';
 
-export function saveToken(token: string) {
-  if (typeof window === 'undefined') return;
-
-  localStorage.setItem(TOKEN_KEY, token);
-  document.cookie = `${TOKEN_COOKIE}=${encodeURIComponent(token)}; path=/; max-age=${TOKEN_MAX_AGE_SECONDS}; SameSite=Lax`;
+export function saveToken(token?: string | null) {
+  void token;
+  // Authentication is stored only in API-managed httpOnly cookies.
+  removeLegacyToken();
 }
 
 export function getToken() {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(TOKEN_KEY);
+  return null;
 }
 
 export function removeToken() {
-  if (typeof window === 'undefined') return;
-
-  localStorage.removeItem(TOKEN_KEY);
-  document.cookie = `${TOKEN_COOKIE}=; path=/; max-age=0; SameSite=Lax`;
+  removeLegacyToken();
 }
 
 export function syncTokenCookie() {
-  if (typeof window === 'undefined') return;
+  removeLegacyToken();
+}
 
-  const token = localStorage.getItem(TOKEN_KEY);
-  if (!token) return;
-
-  const hasCookie = document.cookie
-    .split(';')
-    .some((part) => part.trim().startsWith(`${TOKEN_COOKIE}=`));
-
-  if (!hasCookie) {
-    document.cookie = `${TOKEN_COOKIE}=${encodeURIComponent(token)}; path=/; max-age=${TOKEN_MAX_AGE_SECONDS}; SameSite=Lax`;
-  }
+export function hasClientSession() {
+  return false;
 }
 
 export function logout(redirectTo = '/login') {
@@ -42,4 +29,10 @@ export function logout(redirectTo = '/login') {
   if (typeof window !== 'undefined') {
     window.location.href = redirectTo;
   }
+}
+
+function removeLegacyToken() {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(LEGACY_TOKEN_KEY);
+  document.cookie = `${LEGACY_TOKEN_KEY}=; path=/; max-age=0; SameSite=Lax`;
 }
