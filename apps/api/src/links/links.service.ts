@@ -187,11 +187,10 @@ export class LinksService {
     );
 
     return {
-      items,
       data: items,
       meta: {
         page: query.page,
-        limit: query.limit,
+        pageSize: query.limit,
         total,
         totalPages: Math.ceil(total / query.limit),
       },

@@ -138,5 +138,5 @@ See [DEPLOY.md](./DEPLOY.md) for production deployment guide.
 GitHub Actions runs lint, test, e2e, and build on every push/PR. Locally:
 
 ```bash
-pnpm ci
+pnpm run ci
 ```

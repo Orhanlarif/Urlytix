@@ -96,7 +96,9 @@ describe('Urlytics API (e2e)', () => {
       .expect((response) => {
         expect(Array.isArray(response.body.data)).toBe(true);
         expect(response.body.data.length).toBeGreaterThan(0);
+        expect(response.body.meta.pageSize).toBe(20);
         expect(response.body.meta.total).toBeGreaterThan(0);
+        expect(response.body.items).toBeUndefined();
       });
   });
 

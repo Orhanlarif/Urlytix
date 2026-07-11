@@ -16,6 +16,7 @@ describe('LinksService', () => {
       create: jest.fn(),
       update: jest.fn(),
       findMany: jest.fn(),
+      count: jest.fn(),
       delete: jest.fn(),
     },
     clickEvent: {
@@ -41,6 +42,7 @@ describe('LinksService', () => {
     prisma.link.create.mockReset();
     prisma.link.update.mockReset();
     prisma.link.findMany.mockReset();
+    prisma.link.count.mockReset();
     prisma.link.delete.mockReset();
     prisma.clickEvent.create.mockReset();
 
@@ -96,6 +98,38 @@ describe('LinksService', () => {
           expiresAt: new Date(Date.now() - 60_000).toISOString(),
         }),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('getUserLinks', () => {
+    it('returns the shared pagination response shape', async () => {
+      prisma.link.findMany.mockResolvedValue([
+        {
+          id: 'link-1',
+          originalUrl: 'https://example.com',
+          shortCode: 'abc1234',
+          title: 'Example',
+          status: 'ACTIVE',
+          expiresAt: null,
+          createdAt: new Date('2026-07-11T12:00:00.000Z'),
+          _count: { clickEvents: 3 },
+        },
+      ]);
+      prisma.link.count.mockResolvedValue(1);
+
+      const result = await service.getUserLinks('user-1', {
+        page: 1,
+        limit: 20,
+      });
+
+      expect(result.data).toHaveLength(1);
+      expect(result.meta).toEqual({
+        page: 1,
+        pageSize: 20,
+        total: 1,
+        totalPages: 1,
+      });
+      expect(result).not.toHaveProperty('items');
     });
   });
 

@@ -115,7 +115,7 @@ Her push ve PR'da otomatik çalışır.
 ```bash
 pnpm db:up
 pnpm db:migrate:deploy
-pnpm ci
+pnpm run ci
 ```
 
 ## 7. Monitoring (Opsiyonel)

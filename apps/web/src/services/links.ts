@@ -1,5 +1,6 @@
 import { apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/auth';
+import type { PaginatedResponse } from '@urlytics/shared';
 import type {
   CreateLinkResponse,
   DeleteLinkResponse,
@@ -12,7 +13,8 @@ import type {
 const auth = () => ({ token: getToken() });
 
 export const linksService = {
-  list: () => apiRequest<LinkItem[]>('/links', auth()),
+  list: () =>
+    apiRequest<PaginatedResponse<LinkItem>>('/links', auth()),
   create: (input: {
     originalUrl: string;
     title?: string;

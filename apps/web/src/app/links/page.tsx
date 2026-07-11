@@ -96,8 +96,8 @@ export default function LinksPage() {
     setIsLoading(true);
 
     try {
-      const data = await linksService.list();
-      setLinks(data);
+      const response = await linksService.list();
+      setLinks(response.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : t.links.loadFailed);
     } finally {
