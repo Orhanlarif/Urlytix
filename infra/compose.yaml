@@ -4,6 +4,7 @@ x-api-environment: &api-environment
   NODE_ENV: production
   PORT: "4000"
   DATABASE_URL: postgresql://${POSTGRES_USER:-urlytics}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-urlytics}
+  REDIS_URL: redis://:${REDIS_PASSWORD:?set REDIS_PASSWORD}@redis:6379
   JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
   CORS_ORIGINS: ${CORS_ORIGINS:?set CORS_ORIGINS}
   SHORT_URL_BASE: ${SHORT_URL_BASE:?set SHORT_URL_BASE}
@@ -80,6 +81,8 @@ services:
     environment: *api-environment
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     expose: ["4000"]
     networks: [private, edge]
