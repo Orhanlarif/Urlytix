@@ -4,6 +4,7 @@ import {
   IsString,
   IsUrl,
   MaxLength,
+  MinLength,
   ValidateIf,
 } from 'class-validator';
 
@@ -28,4 +29,11 @@ export class UpdateLinkDto {
   @ValidateIf((_, value) => value !== null)
   @IsISO8601({}, { message: 'Geçerli bir ISO tarih formatı gir.' })
   expiresAt?: string | null;
+
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsString()
+  @MinLength(4)
+  @MaxLength(72)
+  password?: string | null;
 }

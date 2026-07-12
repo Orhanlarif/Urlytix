@@ -7,7 +7,9 @@ import {
   useContext,
   useState,
 } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Modal } from '@/components/ui/modal';
 import { useLanguage } from '@/i18n/language-provider';
 
 type ConfirmOptions = {
@@ -47,18 +49,23 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     <ConfirmContext.Provider value={{ confirm }}>
       {children}
 
-      {pending && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 px-6 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-950 p-6 shadow-2xl">
-            <h2 className="text-xl font-semibold">{pending.title}</h2>
-            <p className="mt-3 text-sm leading-6 text-slate-400">
-              {pending.description}
-            </p>
-
-            <div className="mt-6 flex gap-3">
+      <Modal
+        open={Boolean(pending)}
+        onClose={() => handleClose(false)}
+        title={pending?.title ?? ''}
+        description={pending?.description}
+        closeLabel={t.common.close}
+      >
+        {pending && (
+          <>
+            {pending.variant === 'danger' && (
+              <div className="mb-4 -mt-1 flex h-11 w-11 items-center justify-center rounded-full border border-[var(--danger-border)] bg-[var(--danger-muted)]">
+                <AlertTriangle className="h-5 w-5 text-[var(--danger)]" />
+              </div>
+            )}
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <Button
                 variant="secondary"
-                fullWidth
                 onClick={() => handleClose(false)}
               >
                 {pending.cancelLabel ?? t.common.cancel}
@@ -66,15 +73,14 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
 
               <Button
                 variant={pending.variant === 'danger' ? 'danger' : 'primary'}
-                fullWidth
                 onClick={() => handleClose(true)}
               >
                 {pending.confirmLabel ?? t.common.confirm}
               </Button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
     </ConfirmContext.Provider>
   );
 }

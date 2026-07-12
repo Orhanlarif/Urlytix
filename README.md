@@ -13,9 +13,10 @@ Urlytics, kullanıcıların kısa link oluşturup bu linkler üzerinden detaylı
 
 ## Features
 
-- Authentication (JWT)
-- Link shortening
-- Analytics tracking
+- Cookie-based JWT sessions with rotating refresh tokens
+- Workspace tenancy with OWNER/ADMIN/MEMBER/VIEWER access
+- Link shortening, expiration, status, and optional redirect passwords
+- Workspace-scoped analytics tracking
 - QR code generation
 - Dashboard
 
@@ -62,11 +63,12 @@ cp apps/web/.env.example apps/web/.env.local
 | `SHORT_URL_BASE` | API | Public base URL for short links |
 | `NEXT_PUBLIC_API_URL` | Web | API base URL (e.g. `http://localhost:4000/api`) |
 
-### 5. Run migrations
+### 5. Run migrations and workspace backfill
 
 ```bash
-cd apps/api
-pnpm exec prisma migrate dev
+pnpm db:migrate
+pnpm --filter api backfill:workspaces
+pnpm --filter api verify:workspace-tenancy
 ```
 
 ### 6. Start development servers
@@ -112,7 +114,7 @@ NEXT_PUBLIC_API_URL=https://api.yourdomain.com/api
 - [ ] Set strong `JWT_SECRET`
 - [ ] Set `SHORT_URL_BASE` to production API URL
 - [ ] Set `CORS_ORIGINS` to production frontend URL
-- [ ] Run `pnpm exec prisma migrate deploy` on API
+- [ ] Run `pnpm --filter api deploy:database` (migration → idempotent workspace backfill → orphan verification)
 - [ ] Verify `/api/health` returns `database: connected`
 
 ## Scripts
@@ -123,6 +125,8 @@ pnpm dev:web      # Start frontend only
 pnpm dev:api      # Start backend only
 pnpm db:up        # Start PostgreSQL via Docker
 pnpm db:down      # Stop Docker services
+pnpm test:api:e2e # API/PostgreSQL integration gate
+pnpm test:web:e2e # Playwright browser release smoke
 ```
 
 ## Roadmap
@@ -135,7 +139,10 @@ See [DEPLOY.md](./DEPLOY.md) for production deployment guide.
 
 ## CI
 
-GitHub Actions runs lint, test, e2e, and build on every push/PR. Locally:
+GitHub Actions runs lint, unit/integration tests, API E2E, build, and the
+Playwright browser release gate on every push/PR. The browser gate creates a
+unique user, verifies its default workspace, creates and follows a short link,
+then checks analytics. Locally, start PostgreSQL and apply migrations first:
 
 ```bash
 pnpm run ci

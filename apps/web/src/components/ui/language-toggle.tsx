@@ -7,10 +7,15 @@ import type { Locale } from '@/i18n';
 type LanguageToggleProps = {
   className?: string;
   size?: 'sm' | 'md';
+  onLocaleChange?: (locale: Locale) => void;
 };
 
-export function LanguageToggle({ className, size = 'md' }: LanguageToggleProps) {
-  const { locale, setLocale } = useLanguage();
+export function LanguageToggle({
+  className,
+  size = 'md',
+  onLocaleChange,
+}: LanguageToggleProps) {
+  const { locale, setLocale, t } = useLanguage();
 
   const options: Array<{ value: Locale; label: string }> = [
     { value: 'tr', label: 'TR' },
@@ -20,24 +25,27 @@ export function LanguageToggle({ className, size = 'md' }: LanguageToggleProps) 
   return (
     <div
       className={cn(
-        'inline-flex rounded-xl border border-slate-700 bg-slate-900/80 p-1',
+        'inline-flex rounded-xl border border-[var(--border)] bg-[var(--surface-raised)]/80 p-1',
         size === 'sm' && 'text-xs',
         className,
       )}
       role="group"
-      aria-label="Language"
+      aria-label={t.settings.language}
     >
       {options.map((option) => (
         <button
           key={option.value}
           type="button"
-          onClick={() => setLocale(option.value)}
+          onClick={() => {
+            setLocale(option.value);
+            onLocaleChange?.(option.value);
+          }}
           className={cn(
             'rounded-lg px-3 py-1.5 font-semibold transition',
             size === 'sm' && 'px-2.5 py-1',
             locale === option.value
-              ? 'bg-cyan-400 text-slate-950 shadow-sm'
-              : 'text-slate-400 hover:text-slate-200',
+              ? 'bg-[var(--accent)] text-[var(--accent-foreground)] shadow-[var(--shadow-xs)]'
+              : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]',
           )}
         >
           {option.label}

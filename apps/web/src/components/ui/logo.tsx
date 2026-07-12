@@ -25,17 +25,43 @@ export function Logo({
     <div className={cn('flex items-center gap-3', className)}>
       <div
         className={cn(
-          'flex items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-300 to-cyan-500 font-black text-slate-950 shadow-lg shadow-cyan-400/20',
+          'flex items-center justify-center rounded-2xl bg-gradient-to-br from-[var(--accent-hover)] to-[var(--accent-active)] shadow-[var(--shadow-glow)]',
           iconSize,
         )}
       >
-        U
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          className="h-[55%] w-[55%]"
+          aria-hidden="true"
+        >
+          <path
+            d="M9.5 14.5L14.5 9.5"
+            stroke="var(--accent-foreground)"
+            strokeWidth="2.25"
+            strokeLinecap="round"
+          />
+          <path
+            d="M11 6.5L12.7 4.8a3.6 3.6 0 0 1 5.1 5.1L16 11.6"
+            stroke="var(--accent-foreground)"
+            strokeWidth="2.25"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M13 17.5L11.3 19.2a3.6 3.6 0 0 1-5.1-5.1L8 12.4"
+            stroke="var(--accent-foreground)"
+            strokeWidth="2.25"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
       </div>
 
       <div>
         <p className={cn('font-bold tracking-tight', textSize)}>Urlytics</p>
         {showTagline && (
-          <p className="text-xs text-slate-500">{t.nav.tagline}</p>
+          <p className="text-xs text-[var(--muted-foreground)]">{t.nav.tagline}</p>
         )}
       </div>
     </div>

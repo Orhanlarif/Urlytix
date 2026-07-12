@@ -26,6 +26,13 @@ export class UnauthorizedError extends ApiError {
   }
 }
 
+const refreshExcludedPaths = new Set([
+  '/auth/login',
+  '/auth/register',
+  '/auth/refresh',
+  '/auth/logout',
+]);
+
 export async function apiRequest<T>(
   path: string,
   options: ApiOptions = {},
@@ -53,7 +60,7 @@ export async function apiRequest<T>(
   if (
     response.status === 401 &&
     options.retryAfterRefresh !== false &&
-    !path.startsWith('/auth/')
+    !refreshExcludedPaths.has(path)
   ) {
     const refreshResponse = await fetch(`${API_URL}/auth/refresh`, {
       method: 'POST',

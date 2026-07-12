@@ -21,11 +21,9 @@ export function PageHeader({
           {badge}
         </Badge>
 
-        <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
-          {title}
-        </h1>
+        <h1 className="text-heading-lg">{title}</h1>
 
-        <p className="mt-3 max-w-2xl text-slate-400">{description}</p>
+        <p className="text-body mt-3 max-w-2xl">{description}</p>
       </div>
 
       {action}

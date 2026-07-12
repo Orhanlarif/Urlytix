@@ -10,6 +10,8 @@ export interface UserSummary {
   id: string;
   name: string | null;
   email: string;
+  timezone?: string;
+  locale?: string;
   createdAt: string;
 }
 
@@ -27,6 +29,7 @@ export interface LinkSummary {
   title: string | null;
   status: LinkStatus;
   expiresAt: string | null;
+  hasPassword?: boolean;
   totalClicks: number;
   createdAt: string;
 }
@@ -67,3 +70,66 @@ export type SubscriptionStatus =
   | 'ACTIVE'
   | 'PAST_DUE'
   | 'CANCELED';
+
+export interface Workspace {
+  id: string;
+  name: string;
+  slug: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkspaceSummary extends Workspace {
+  _count: {
+    links: number;
+    memberships: number;
+  };
+}
+
+export interface WorkspaceMembership {
+  id: string;
+  role: WorkspaceRole;
+  userId: string;
+  workspaceId: string;
+  createdAt: string;
+  user: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
+}
+
+export interface WorkspaceDetail extends Workspace {
+  memberships: WorkspaceMembership[];
+}
+
+export interface ApiKeySummary {
+  id: string;
+  name: string;
+  prefix: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
+export interface CreateApiKeyResponse {
+  apiKey: Omit<ApiKeySummary, 'lastUsedAt'>;
+  secret: string;
+}
+
+export interface DomainSummary {
+  id: string;
+  workspaceId: string;
+  hostname: string;
+  verificationToken: string;
+  verifiedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DomainVerifyResponse {
+  verified: boolean;
+  record?: string;
+  expectedValue?: string;
+  domain?: DomainSummary;
+}

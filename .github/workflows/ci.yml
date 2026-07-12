@@ -75,11 +75,17 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
-      - name: E2E tests
-        run: pnpm --filter api test:e2e
+      - name: API E2E tests
+        run: pnpm test:api:e2e
 
       - name: Build
         run: pnpm build
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter web exec playwright install --with-deps chromium
+
+      - name: Web E2E release gate
+        run: pnpm test:web:e2e
 
       - name: Build production API image
         run: docker build --file infra/docker/api.Dockerfile --target runtime --tag urlytics-api:ci .

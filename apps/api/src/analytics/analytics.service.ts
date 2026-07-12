@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { AppConfigService } from '../config/app-config.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { WorkspacesService } from '../workspaces/workspaces.service';
 import { AnalyticsQueryDto } from './dto/analytics-query.dto';
 
 type GroupedItem = {
@@ -17,100 +18,104 @@ export class AnalyticsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly appConfig: AppConfigService,
+    private readonly workspaces: WorkspacesService,
   ) {}
 
-  async getDashboardOverview(userId: string, query: AnalyticsQueryDto) {
+  async getDashboardOverview(
+    userId: string,
+    workspaceId: string,
+    query: AnalyticsQueryDto,
+  ) {
+    await this.workspaces.assertMember(userId, workspaceId);
+
     const startOfToday = this.getStartOfToday();
     const range = this.resolveRange(query);
+    const linkScope = { workspaceId };
 
-    const [totalLinks, totalClicks, clicksToday, topLinks, recentClicks] =
-      await Promise.all([
-        this.prisma.link.count({
-          where: {
-            userId,
-          },
-        }),
+    const [
+      totalLinks,
+      totalClicks,
+      clicksToday,
+      topLinks,
+      recentClicks,
+      brandHostname,
+    ] = await Promise.all([
+      this.prisma.link.count({
+        where: linkScope,
+      }),
 
-        this.prisma.clickEvent.count({
-          where: {
-            link: {
-              userId,
-            },
-          },
-        }),
+      this.prisma.clickEvent.count({
+        where: {
+          link: linkScope,
+        },
+      }),
 
-        this.prisma.clickEvent.count({
-          where: {
-            link: {
-              userId,
-            },
-            clickedAt: {
-              gte: startOfToday,
-            },
+      this.prisma.clickEvent.count({
+        where: {
+          link: linkScope,
+          clickedAt: {
+            gte: startOfToday,
           },
-        }),
+        },
+      }),
 
-        this.prisma.link.findMany({
-          where: {
-            userId,
+      this.prisma.link.findMany({
+        where: linkScope,
+        orderBy: {
+          clickEvents: {
+            _count: 'desc',
           },
-          orderBy: {
-            clickEvents: {
-              _count: 'desc',
+        },
+        take: 5,
+        select: {
+          id: true,
+          title: true,
+          originalUrl: true,
+          shortCode: true,
+          createdAt: true,
+          _count: {
+            select: {
+              clickEvents: true,
             },
           },
-          take: 5,
-          select: {
-            id: true,
-            title: true,
-            originalUrl: true,
-            shortCode: true,
-            createdAt: true,
-            _count: {
-              select: {
-                clickEvents: true,
-              },
-            },
-          },
-        }),
+        },
+      }),
 
-        this.prisma.clickEvent.findMany({
-          where: {
-            link: {
-              userId,
+      this.prisma.clickEvent.findMany({
+        where: {
+          link: linkScope,
+        },
+        orderBy: {
+          clickedAt: 'desc',
+        },
+        take: 10,
+        select: {
+          id: true,
+          clickedAt: true,
+          country: true,
+          city: true,
+          deviceType: true,
+          browser: true,
+          os: true,
+          referrer: true,
+          isBot: true,
+          link: {
+            select: {
+              id: true,
+              title: true,
+              shortCode: true,
+              originalUrl: true,
             },
           },
-          orderBy: {
-            clickedAt: 'desc',
-          },
-          take: 10,
-          select: {
-            id: true,
-            clickedAt: true,
-            country: true,
-            city: true,
-            deviceType: true,
-            browser: true,
-            os: true,
-            referrer: true,
-            isBot: true,
-            link: {
-              select: {
-                id: true,
-                title: true,
-                shortCode: true,
-                originalUrl: true,
-              },
-            },
-          },
-        }),
-      ]);
+        },
+      }),
+
+      this.resolveBrandHostname(workspaceId),
+    ]);
 
     const rangeClicks = await this.prisma.clickEvent.findMany({
       where: {
-        link: {
-          userId,
-        },
+        link: linkScope,
         clickedAt: {
           gte: range.from,
           lte: range.to,
@@ -140,7 +145,7 @@ export class AnalyticsService {
         title: link.title,
         originalUrl: link.originalUrl,
         shortCode: link.shortCode,
-        shortUrl: this.appConfig.buildShortUrl(link.shortCode),
+        shortUrl: this.appConfig.buildShortUrl(link.shortCode, brandHostname),
         totalClicks: link._count.clickEvents,
         createdAt: link.createdAt,
       })),
@@ -170,17 +175,17 @@ export class AnalyticsService {
       throw new NotFoundException('Link bulunamadı.');
     }
 
-    if (link.userId !== userId) {
-      throw new ForbiddenException(
-        'Bu linkin analytics verisine erişim yetkin yok.',
-      );
+    if (!link.workspaceId) {
+      throw new ForbiddenException('Bu link bir workspace’e bağlı değil.');
     }
+    await this.workspaces.assertMember(userId, link.workspaceId);
 
     const range = this.resolveRange(query);
     const where = {
       linkId,
       clickedAt: { gte: range.from, lte: range.to },
     };
+    const brandHostname = await this.resolveBrandHostname(link.workspaceId);
 
     const [
       rangeClicks,
@@ -297,9 +302,10 @@ export class AnalyticsService {
         title: link.title,
         originalUrl: link.originalUrl,
         shortCode: link.shortCode,
-        shortUrl: this.appConfig.buildShortUrl(link.shortCode),
+        shortUrl: this.appConfig.buildShortUrl(link.shortCode, brandHostname),
         status: link.status,
         expiresAt: link.expiresAt,
+        hasPassword: Boolean(link.passwordHash),
         totalClicks: link._count.clickEvents,
         createdAt: link.createdAt,
       },
@@ -330,6 +336,23 @@ export class AnalyticsService {
       },
       recentClicks,
     };
+  }
+
+  private async resolveBrandHostname(workspaceId?: string | null) {
+    if (!workspaceId) {
+      return null;
+    }
+
+    const domain = await this.prisma.domain.findFirst({
+      where: {
+        workspaceId,
+        verifiedAt: { not: null },
+      },
+      orderBy: { verifiedAt: 'asc' },
+      select: { hostname: true },
+    });
+
+    return domain?.hostname ?? null;
   }
 
   private mapGroups<K extends string>(

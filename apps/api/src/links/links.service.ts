@@ -6,12 +6,14 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { createHash, randomBytes, randomUUID } from 'crypto';
+import { createHash, createHmac, randomBytes, randomUUID } from 'crypto';
 import { lookup } from 'dns/promises';
 import type { Request } from 'express';
 import { isIP } from 'net';
+import * as bcrypt from 'bcryptjs';
 import { AppConfigService } from '../config/app-config.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { WorkspacesService } from '../workspaces/workspaces.service';
 import { CreateLinkDto } from './dto/create-link.dto';
 import { ListLinksQueryDto } from './dto/list-links-query.dto';
 import { UpdateLinkDto } from './dto/update-link.dto';
@@ -28,10 +30,15 @@ type LinkRecord = {
   status: LinkStatus;
   expiresAt: Date | null;
   createdAt: Date;
+  workspaceId?: string | null;
+  passwordHash?: string | null;
 };
 
 const VISITOR_COOKIE = 'urlytics_vid';
 const VISITOR_COOKIE_MAX_AGE_MS = 365 * 24 * 60 * 60 * 1000;
+const LINK_PASSWORD_COOKIE_PREFIX = 'urlytics_lp_';
+const LINK_PASSWORD_COOKIE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+const LINK_WRITE_ROLES = ['OWNER', 'ADMIN', 'MEMBER'] as const;
 
 @Injectable()
 export class LinksService {
@@ -41,9 +48,13 @@ export class LinksService {
     private readonly prisma: PrismaService,
     private readonly appConfig: AppConfigService,
     private readonly clickIngestion: ClickIngestionService,
+    private readonly workspaces: WorkspacesService,
   ) {}
 
   async createLink(userId: string, createLinkDto: CreateLinkDto) {
+    await this.workspaces.assertRole(userId, createLinkDto.workspaceId, [
+      ...LINK_WRITE_ROLES,
+    ]);
     await this.validateDestinationUrl(createLinkDto.originalUrl);
     const shortCode = createLinkDto.customAlias
       ? createLinkDto.customAlias
@@ -60,21 +71,30 @@ export class LinksService {
     }
 
     const expiresAt = this.parseFutureExpiration(createLinkDto.expiresAt);
+    const passwordHash = createLinkDto.password
+      ? await bcrypt.hash(createLinkDto.password, 10)
+      : null;
 
     const link = await this.prisma.link.create({
       data: {
         userId,
+        workspaceId: createLinkDto.workspaceId,
         originalUrl: createLinkDto.originalUrl,
         title: createLinkDto.title,
         shortCode,
         expiresAt,
+        passwordHash,
       },
       select: this.linkSelectFields(),
     });
 
+    const brandHostname = await this.resolveBrandHostname(
+      createLinkDto.workspaceId,
+    );
+
     return {
       message: 'Link oluşturuldu.',
-      link: this.formatLink(link, 0),
+      link: this.formatLink(link, 0, brandHostname),
     };
   }
 
@@ -83,13 +103,14 @@ export class LinksService {
     linkId: string,
     updateLinkDto: UpdateLinkDto,
   ) {
-    const link = await this.findOwnedLink(linkId, userId);
+    const link = await this.findAccessibleLink(linkId, userId, true);
 
     const data: {
       originalUrl?: string;
       title?: string;
       expiresAt?: Date | null;
       status?: LinkStatus;
+      passwordHash?: string | null;
     } = {};
 
     if (updateLinkDto.originalUrl !== undefined) {
@@ -116,6 +137,13 @@ export class LinksService {
       }
     }
 
+    if (updateLinkDto.password !== undefined) {
+      data.passwordHash =
+        updateLinkDto.password === null
+          ? null
+          : await bcrypt.hash(updateLinkDto.password, 10);
+    }
+
     const updatedLink = await this.prisma.link.update({
       where: {
         id: linkId,
@@ -131,15 +159,25 @@ export class LinksService {
       },
     });
 
+    const brandHostname = await this.resolveBrandHostname(
+      updatedLink.workspaceId,
+    );
+
     return {
       message: 'Link güncellendi.',
-      link: this.formatLink(updatedLink, updatedLink._count.clickEvents),
+      link: this.formatLink(
+        updatedLink,
+        updatedLink._count.clickEvents,
+        brandHostname,
+      ),
     };
   }
 
   async getUserLinks(userId: string, query: ListLinksQueryDto) {
+    await this.workspaces.assertMember(userId, query.workspaceId);
+
     const where = {
-      userId,
+      workspaceId: query.workspaceId,
       status: query.status,
       ...(query.search
         ? {
@@ -163,7 +201,7 @@ export class LinksService {
           }
         : {}),
     };
-    const [links, total] = await Promise.all([
+    const [links, total, brandHostname] = await Promise.all([
       this.prisma.link.findMany({
         where,
         orderBy: {
@@ -181,9 +219,10 @@ export class LinksService {
         },
       }),
       this.prisma.link.count({ where }),
+      this.resolveBrandHostname(query.workspaceId),
     ]);
     const items = links.map((link) =>
-      this.formatLink(link, link._count.clickEvents),
+      this.formatLink(link, link._count.clickEvents, brandHostname),
     );
 
     return {
@@ -198,32 +237,19 @@ export class LinksService {
   }
 
   async getUserLinkById(userId: string, linkId: string) {
-    const link = await this.prisma.link.findUnique({
-      where: {
-        id: linkId,
-      },
-      include: {
-        _count: {
-          select: {
-            clickEvents: true,
-          },
-        },
-      },
-    });
+    const link = await this.findAccessibleLink(linkId, userId);
+    const [clickCount, brandHostname] = await Promise.all([
+      this.prisma.clickEvent.count({
+        where: { linkId },
+      }),
+      this.resolveBrandHostname(link.workspaceId),
+    ]);
 
-    if (!link) {
-      throw new NotFoundException('Link bulunamadı.');
-    }
-
-    if (link.userId !== userId) {
-      throw new ForbiddenException('Bu linke erişim yetkin yok.');
-    }
-
-    return this.formatLink(link, link._count.clickEvents);
+    return this.formatLink(link, clickCount, brandHostname);
   }
 
   async updateLinkStatus(userId: string, linkId: string, status: LinkStatus) {
-    const link = await this.findOwnedLink(linkId, userId);
+    const link = await this.findAccessibleLink(linkId, userId, true);
 
     if (status === 'ACTIVE') {
       if (this.isExpired(link)) {
@@ -250,14 +276,22 @@ export class LinksService {
       },
     });
 
+    const brandHostname = await this.resolveBrandHostname(
+      updatedLink.workspaceId,
+    );
+
     return {
       message: 'Link durumu güncellendi.',
-      link: this.formatLink(updatedLink, updatedLink._count.clickEvents),
+      link: this.formatLink(
+        updatedLink,
+        updatedLink._count.clickEvents,
+        brandHostname,
+      ),
     };
   }
 
   async deleteLink(userId: string, linkId: string) {
-    await this.findOwnedLink(linkId, userId);
+    await this.findAccessibleLink(linkId, userId, true);
 
     await this.prisma.link.delete({
       where: {
@@ -272,6 +306,21 @@ export class LinksService {
   }
 
   async handleRedirect(shortCode: string, request: Request) {
+    const hostname = this.getRequestHostname(request);
+    const customDomain = await this.resolveVerifiedDomain(hostname);
+
+    if (
+      hostname &&
+      !this.appConfig.isPlatformHostname(hostname) &&
+      !customDomain
+    ) {
+      throw new LinkRedirectException(
+        'not_found',
+        'Kısa link bulunamadı.',
+        404,
+      );
+    }
+
     const link = await this.prisma.link.findUnique({
       where: {
         shortCode,
@@ -279,6 +328,17 @@ export class LinksService {
     });
 
     if (!link) {
+      throw new LinkRedirectException(
+        'not_found',
+        'Kısa link bulunamadı.',
+        404,
+      );
+    }
+
+    if (
+      customDomain &&
+      (!link.workspaceId || link.workspaceId !== customDomain.workspaceId)
+    ) {
       throw new LinkRedirectException(
         'not_found',
         'Kısa link bulunamadı.',
@@ -305,6 +365,17 @@ export class LinksService {
       throw new LinkRedirectException('inactive', 'Bu link aktif değil.', 403);
     }
 
+    if (link.passwordHash) {
+      const unlocked = this.hasValidPasswordUnlock(request, link);
+      if (!unlocked) {
+        throw new LinkRedirectException(
+          'password_required',
+          'Bu link şifre korumalı.',
+          401,
+        );
+      }
+    }
+
     const { visitorId, isNew } = this.resolveVisitorId(request);
 
     try {
@@ -320,6 +391,88 @@ export class LinksService {
       originalUrl: link.originalUrl,
       visitorId,
       isNewVisitor: isNew,
+      passwordUnlockToken: null as string | null,
+      passwordCookieName: null as string | null,
+    };
+  }
+
+  async unlockRedirect(shortCode: string, password: string, request: Request) {
+    const hostname = this.getRequestHostname(request);
+    const customDomain = await this.resolveVerifiedDomain(hostname);
+
+    if (
+      hostname &&
+      !this.appConfig.isPlatformHostname(hostname) &&
+      !customDomain
+    ) {
+      throw new LinkRedirectException(
+        'not_found',
+        'Kısa link bulunamadı.',
+        404,
+      );
+    }
+
+    const link = await this.prisma.link.findUnique({
+      where: { shortCode },
+    });
+
+    if (!link) {
+      throw new LinkRedirectException(
+        'not_found',
+        'Kısa link bulunamadı.',
+        404,
+      );
+    }
+
+    if (
+      customDomain &&
+      (!link.workspaceId || link.workspaceId !== customDomain.workspaceId)
+    ) {
+      throw new LinkRedirectException(
+        'not_found',
+        'Kısa link bulunamadı.',
+        404,
+      );
+    }
+
+    if (this.isExpired(link)) {
+      throw new LinkRedirectException(
+        'expired',
+        'Bu linkin süresi dolmuş.',
+        410,
+      );
+    }
+
+    if (link.status !== 'ACTIVE') {
+      throw new LinkRedirectException('inactive', 'Bu link aktif değil.', 403);
+    }
+
+    if (!link.passwordHash) {
+      return this.handleRedirect(shortCode, request);
+    }
+
+    const valid = await bcrypt.compare(password, link.passwordHash);
+    if (!valid) {
+      throw new LinkRedirectException('password_invalid', 'Şifre hatalı.', 401);
+    }
+
+    const { visitorId, isNew } = this.resolveVisitorId(request);
+
+    try {
+      await this.trackClick(link.id, request, visitorId);
+    } catch (error) {
+      this.logger.error(
+        `Click tracking failed for link ${link.id}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
+
+    return {
+      originalUrl: link.originalUrl,
+      visitorId,
+      isNewVisitor: isNew,
+      passwordUnlockToken: this.createPasswordUnlockToken(link),
+      passwordCookieName: this.getPasswordCookieName(link.id),
     };
   }
 
@@ -332,11 +485,28 @@ export class LinksService {
     };
   }
 
+  getPasswordCookieOptions(isProduction: boolean) {
+    return {
+      maxAge: LINK_PASSWORD_COOKIE_MAX_AGE_MS,
+      httpOnly: true,
+      sameSite: 'lax' as const,
+      secure: isProduction,
+    };
+  }
+
   getVisitorCookieName() {
     return VISITOR_COOKIE;
   }
 
-  private async findOwnedLink(linkId: string, userId: string) {
+  getPasswordCookieName(linkId: string) {
+    return `${LINK_PASSWORD_COOKIE_PREFIX}${linkId}`;
+  }
+
+  private async findAccessibleLink(
+    linkId: string,
+    userId: string,
+    requireWriteAccess = false,
+  ) {
     const link = await this.prisma.link.findUnique({
       where: {
         id: linkId,
@@ -347,8 +517,16 @@ export class LinksService {
       throw new NotFoundException('Link bulunamadı.');
     }
 
-    if (link.userId !== userId) {
-      throw new ForbiddenException('Bu linki güncelleme yetkin yok.');
+    if (!link.workspaceId) {
+      throw new ForbiddenException('Bu link bir workspace’e bağlı değil.');
+    }
+
+    if (requireWriteAccess) {
+      await this.workspaces.assertRole(userId, link.workspaceId, [
+        ...LINK_WRITE_ROLES,
+      ]);
+    } else {
+      await this.workspaces.assertMember(userId, link.workspaceId);
     }
 
     return link;
@@ -363,21 +541,108 @@ export class LinksService {
       status: true,
       expiresAt: true,
       createdAt: true,
+      workspaceId: true,
+      passwordHash: true,
     } as const;
   }
 
-  private formatLink(link: LinkRecord, totalClicks: number) {
+  private formatLink(
+    link: LinkRecord,
+    totalClicks: number,
+    brandHostname?: string | null,
+  ) {
     return {
       id: link.id,
       originalUrl: link.originalUrl,
       shortCode: link.shortCode,
-      shortUrl: this.appConfig.buildShortUrl(link.shortCode),
+      shortUrl: this.appConfig.buildShortUrl(link.shortCode, brandHostname),
       title: link.title,
       status: link.status,
       expiresAt: link.expiresAt,
+      hasPassword: Boolean(link.passwordHash),
       totalClicks,
       createdAt: link.createdAt,
     };
+  }
+
+  private hasValidPasswordUnlock(
+    request: Request,
+    link: { id: string; passwordHash: string | null },
+  ) {
+    if (!link.passwordHash) {
+      return true;
+    }
+
+    const cookies = request.cookies as
+      Record<string, string | undefined> | undefined;
+    const token = cookies?.[this.getPasswordCookieName(link.id)];
+    if (!token) {
+      return false;
+    }
+
+    return token === this.createPasswordUnlockToken(link);
+  }
+
+  private createPasswordUnlockToken(link: {
+    id: string;
+    passwordHash: string | null;
+  }) {
+    return createHmac('sha256', this.appConfig.jwtSecret)
+      .update(`${link.id}:${link.passwordHash ?? ''}`)
+      .digest('hex');
+  }
+
+  private async resolveBrandHostname(workspaceId?: string | null) {
+    if (!workspaceId) {
+      return null;
+    }
+
+    const domain = await this.prisma.domain.findFirst({
+      where: {
+        workspaceId,
+        verifiedAt: { not: null },
+      },
+      orderBy: { verifiedAt: 'asc' },
+      select: { hostname: true },
+    });
+
+    return domain?.hostname ?? null;
+  }
+
+  private async resolveVerifiedDomain(hostname: string | null) {
+    if (!hostname || this.appConfig.isPlatformHostname(hostname)) {
+      return null;
+    }
+
+    return this.prisma.domain.findFirst({
+      where: {
+        hostname,
+        verifiedAt: { not: null },
+      },
+      select: {
+        id: true,
+        workspaceId: true,
+        hostname: true,
+      },
+    });
+  }
+
+  private getRequestHostname(request: Request) {
+    const forwardedHost = request.headers['x-forwarded-host'];
+    const rawHost =
+      typeof forwardedHost === 'string'
+        ? forwardedHost.split(',')[0]?.trim()
+        : typeof request.headers.host === 'string'
+          ? request.headers.host
+          : request.hostname;
+
+    if (!rawHost) {
+      return null;
+    }
+
+    return (
+      rawHost.split(':')[0]?.trim().toLowerCase().replace(/\.$/, '') || null
+    );
   }
 
   private parseFutureExpiration(value?: string | null) {

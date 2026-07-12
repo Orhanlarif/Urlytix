@@ -37,6 +37,41 @@ checks succeed. Configure `NEXT_PUBLIC_API_URL` as a GitHub environment variable
 `DEPLOY_TOKEN` as an environment secret. Configure `DEPLOY_HOOK_URL` as a protected
 environment variable; do not encode credentials in it.
 
+## Staging release gate
+
+Run this only after recording a verified snapshot/backup and deploying the candidate
+API/web image. The full command applies migrations, runs the idempotent legacy
+workspace backfill, verifies that no orphan link remains, then checks health,
+default-workspace provisioning, link creation, a controlled redirect, and analytics:
+
+```sh
+STAGING_CONFIRM=urlytics-staging \
+STAGING_API_URL=https://staging-api.example.invalid/api \
+DATABASE_URL=postgresql://replace-from-secret-store \
+pnpm release:staging:gate
+```
+
+Prefer a dedicated existing smoke account by setting `STAGING_SMOKE_EMAIL` and
+`STAGING_SMOKE_PASSWORD`; otherwise the script registers a unique user. It always
+deletes its test link. Use `pnpm release:staging:smoke` after a rollout when database
+migration/backfill has already run in the protected migration job.
+
+Release operator checklist:
+
+1. Record candidate SHA, previous known-good image tags, database migration status,
+   and backup/snapshot identifier plus checksum.
+2. Run `pnpm --filter api deploy:database`; preserve output showing migration,
+   backfill counts, and `verify:workspace-tenancy` success.
+3. Roll out the candidate API/web images and wait for platform readiness.
+4. Run the staging gate; preserve non-secret output for health, redirect, and
+   analytics checks.
+5. Observe errors, redirect latency, database health, and queue/cache health for at
+   least 15 minutes before promotion.
+6. If any gate fails, stop promotion and roll back the application image first.
+7. If data integrity is in doubt, stop writes, preserve a final backup, restore the
+   approved pre-release snapshot into a new database, run `prisma migrate status`
+   and tenancy verification, then switch traffic only after smoke checks pass.
+
 ## PostgreSQL backup
 
 Use provider-native snapshots/PITR when available. For the Compose deployment, create
@@ -86,6 +121,10 @@ If an additive migration was applied, leave it in place. If the old image is not
 schema-compatible, roll forward with a corrective migration. Restore a backup only
 for confirmed destructive/corrupting changes and accept that writes after the backup
 time may be lost. The incident commander must approve a production restore.
+
+Never mark migration, restore, rollback, or staging smoke complete without operator
+output from the actual external environment. Repository CI proves only the local
+automation path.
 
 ## Incident response
 

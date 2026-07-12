@@ -36,3 +36,8 @@ export class AddMemberDto {
   @IsIn(['ADMIN', 'MEMBER', 'VIEWER'])
   role!: 'ADMIN' | 'MEMBER' | 'VIEWER';
 }
+
+export class UpdateMemberRoleDto {
+  @IsIn(['ADMIN', 'MEMBER', 'VIEWER'])
+  role!: 'ADMIN' | 'MEMBER' | 'VIEWER';
+}

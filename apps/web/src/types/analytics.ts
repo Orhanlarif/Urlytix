@@ -68,6 +68,7 @@ export type LinkAnalytics = {
     shortUrl: string;
     status: 'ACTIVE' | 'DISABLED' | 'EXPIRED';
     expiresAt: string | null;
+    hasPassword?: boolean;
     totalClicks: number;
     createdAt: string;
   };

@@ -5,6 +5,11 @@ info:
   description: |
     Contract for implemented and planned Urlytics endpoints. Operations marked
     `x-urlytics-status: planned` are design targets and are not available yet.
+    Billing is retained for a later phase and its implemented routes return 404
+    unless the server is explicitly started with `BILLING_ENABLED=true`.
+    Registering a user atomically provisions an OWNER default workspace.
+    Browser sessions use API-managed httpOnly `access_token` (15 minutes) and
+    rotating `refresh_token` (30 days) cookies; bearer JWTs remain supported.
     All paths are relative to the NestJS `/api` global prefix.
 servers:
   - url: https://api.example.invalid/api
@@ -43,6 +48,7 @@ paths:
       tags: [Auth]
       operationId: register
       summary: Register a user
+      description: Creates the user, an OWNER default workspace, and a refresh session.
       x-urlytics-status: implemented
       security: []
       requestBody:
@@ -144,17 +150,35 @@ paths:
     get:
       tags: [Links]
       operationId: listLinks
-      summary: List links owned by the current user
+      summary: List links in a workspace
       x-urlytics-status: implemented
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdQuery"
       responses:
         "200":
           description: Links
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Link"
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Link"
+                  meta:
+                    type: object
+                    required: [page, pageSize, total, totalPages]
+                    properties:
+                      page:
+                        type: integer
+                      pageSize:
+                        type: integer
+                      total:
+                        type: integer
+                      totalPages:
+                        type: integer
         "401":
           $ref: "#/components/responses/Unauthorized"
     post:
@@ -293,6 +317,18 @@ paths:
               schema:
                 type: string
                 format: uri
+        "401":
+          description: Password-protected link requires unlocking
+          content:
+            text/html:
+              schema:
+                type: string
+        "403":
+          description: Link is disabled
+          content:
+            text/html:
+              schema:
+                type: string
         "404":
           description: Link not found
           content:
@@ -300,7 +336,64 @@ paths:
               schema:
                 type: string
         "410":
-          description: Link disabled or expired
+          description: Link expired
+          content:
+            text/html:
+              schema:
+                type: string
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    post:
+      tags: [Links]
+      operationId: unlockPasswordProtectedLink
+      summary: Verify a protected-link password and redirect
+      description: Limited to 5 attempts per minute per throttling identity.
+      x-urlytics-status: implemented
+      security: []
+      parameters:
+        - name: shortCode
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 32
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UnlockLinkRequest"
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/UnlockLinkRequest"
+      responses:
+        "302":
+          description: Password accepted; redirect to destination
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+            Set-Cookie:
+              schema:
+                type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          description: Password is required or invalid
+          content:
+            text/html:
+              schema:
+                type: string
+        "404":
+          description: Link not found
+          content:
+            text/html:
+              schema:
+                type: string
+        "410":
+          description: Link expired
           content:
             text/html:
               schema:
@@ -312,8 +405,10 @@ paths:
     get:
       tags: [Analytics]
       operationId: getAnalyticsOverview
-      summary: Get dashboard analytics
+      summary: Get dashboard analytics for a workspace
       x-urlytics-status: implemented
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceIdQuery"
       responses:
         "200":
           description: Dashboard overview
@@ -509,12 +604,12 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [name]
+              minProperties: 1
               properties:
                 name:
                   type: string
-                  minLength: 1
-                  maxLength: 80
+                  minLength: 2
+                  maxLength: 100
       responses:
         "200":
           description: Workspace updated
@@ -591,6 +686,60 @@ paths:
         "409":
           $ref: "#/components/responses/Conflict"
 
+  /workspaces/{workspaceId}/members/{userId}:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceId"
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      tags: [Workspaces]
+      operationId: updateWorkspaceMemberRole
+      summary: Update a workspace member role
+      x-urlytics-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [role]
+              properties:
+                role:
+                  type: string
+                  enum: [ADMIN, MEMBER, VIEWER]
+      responses:
+        "200":
+          description: Member role updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceMember"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Workspaces]
+      operationId: removeWorkspaceMember
+      summary: Remove a workspace member
+      x-urlytics-status: implemented
+      responses:
+        "200":
+          description: Member removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /workspaces/{workspaceId}/invitations:
     post:
       tags: [Workspaces]
@@ -630,7 +779,7 @@ paths:
       tags: [Billing]
       operationId: listBillingPlans
       summary: List available plans
-      x-urlytics-status: implemented
+      x-urlytics-status: disabled-by-default
       security: []
       responses:
         "200":
@@ -642,6 +791,8 @@ paths:
                 items:
                   type: object
                   additionalProperties: true
+        "404":
+          description: Billing is disabled for the free first phase
 
   /billing/workspaces/{workspaceId}/subscription:
     parameters:
@@ -650,7 +801,7 @@ paths:
       tags: [Billing]
       operationId: getSubscription
       summary: Get workspace subscription and entitlements
-      x-urlytics-status: implemented
+      x-urlytics-status: disabled-by-default
       responses:
         "200":
           description: Subscription
@@ -659,12 +810,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/Subscription"
         "404":
-          $ref: "#/components/responses/NotFound"
+          description: Billing is disabled or the subscription was not found
     patch:
       tags: [Billing]
       operationId: changeSubscriptionPlan
       summary: Change the workspace plan
-      x-urlytics-status: implemented
+      x-urlytics-status: disabled-by-default
       requestBody:
         required: true
         content:
@@ -687,6 +838,8 @@ paths:
                 $ref: "#/components/schemas/Subscription"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Billing is disabled for the free first phase
 
   /billing/checkout:
     post:
@@ -820,13 +973,14 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: "#/components/schemas/ApiKey"
-                  - type: object
-                    required: [secret]
-                    properties:
-                      secret:
-                        type: string
+                type: object
+                additionalProperties: false
+                required: [apiKey, secret]
+                properties:
+                  apiKey:
+                    $ref: "#/components/schemas/ApiKey"
+                  secret:
+                    type: string
 
   /workspaces/{workspaceId}/api-keys/{apiKeyId}:
     delete:
@@ -843,8 +997,12 @@ paths:
             type: string
             format: uuid
       responses:
-        "204":
+        "200":
           description: API key revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -902,13 +1060,14 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: "#/components/schemas/Webhook"
-                  - type: object
-                    required: [signingSecret]
-                    properties:
-                      signingSecret:
-                        type: string
+                type: object
+                additionalProperties: false
+                required: [webhook, secret]
+                properties:
+                  webhook:
+                    $ref: "#/components/schemas/Webhook"
+                  secret:
+                    type: string
 
   /workspaces/{workspaceId}/webhooks/{webhookId}:
     parameters:
@@ -947,8 +1106,12 @@ paths:
       summary: Delete a webhook subscription
       x-urlytics-status: implemented
       responses:
-        "204":
+        "200":
           description: Webhook deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -1067,6 +1230,10 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    accessCookie:
+      type: apiKey
+      in: cookie
+      name: access_token
     refreshCookie:
       type: apiKey
       in: cookie
@@ -1083,6 +1250,13 @@ components:
     WorkspaceId:
       name: workspaceId
       in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    WorkspaceIdQuery:
+      name: workspaceId
+      in: query
       required: true
       schema:
         type: string
@@ -1203,12 +1377,15 @@ components:
       properties:
         name:
           type: string
+          maxLength: 100
         email:
           type: string
           format: email
         password:
           type: string
-          minLength: 6
+          minLength: 12
+          maxLength: 128
+          description: Must include lowercase, uppercase, numeric, and symbol characters.
 
     LoginRequest:
       type: object
@@ -1225,13 +1402,11 @@ components:
     AuthResponse:
       type: object
       additionalProperties: false
-      required: [message, accessToken, refreshToken, user]
+      required: [message, accessToken, user]
       properties:
         message:
           type: string
         accessToken:
-          type: string
-        refreshToken:
           type: string
         user:
           $ref: "#/components/schemas/User"
@@ -1268,8 +1443,11 @@ components:
     CreateLinkRequest:
       type: object
       additionalProperties: false
-      required: [originalUrl]
+      required: [workspaceId, originalUrl]
       properties:
+        workspaceId:
+          type: string
+          format: uuid
         originalUrl:
           type: string
           format: uri
@@ -1284,6 +1462,10 @@ components:
         expiresAt:
           type: string
           format: date-time
+        password:
+          type: string
+          minLength: 4
+          maxLength: 72
 
     UpdateLinkRequest:
       type: object
@@ -1299,6 +1481,20 @@ components:
         expiresAt:
           type: [string, "null"]
           format: date-time
+        password:
+          type: [string, "null"]
+          minLength: 4
+          maxLength: 72
+
+    UnlockLinkRequest:
+      type: object
+      additionalProperties: false
+      required: [password]
+      properties:
+        password:
+          type: string
+          minLength: 1
+          maxLength: 72
 
     UpdateLinkStatusRequest:
       type: object
@@ -1330,6 +1526,8 @@ components:
         expiresAt:
           type: [string, "null"]
           format: date-time
+        hasPassword:
+          type: boolean
         createdAt:
           type: string
           format: date-time
@@ -1509,7 +1707,7 @@ components:
     Workspace:
       type: object
       additionalProperties: false
-      required: [id, name, slug, role, createdAt]
+      required: [id, name, slug, createdAt, updatedAt]
       properties:
         id:
           type: string
@@ -1518,22 +1716,54 @@ components:
           type: string
         slug:
           type: string
-        role:
-          $ref: "#/components/schemas/WorkspaceRole"
         createdAt:
           type: string
           format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        memberships:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkspaceMember"
+        _count:
+          type: object
+          properties:
+            links:
+              type: integer
+            memberships:
+              type: integer
 
     WorkspaceMember:
       type: object
       additionalProperties: false
-      required: [user, role, joinedAt]
+      required: [id, userId, workspaceId, role, createdAt]
       properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        workspaceId:
+          type: string
+          format: uuid
         user:
-          $ref: "#/components/schemas/User"
+          type: object
+          additionalProperties: false
+          required: [id, email]
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: [string, "null"]
+            email:
+              type: string
+              format: email
         role:
           $ref: "#/components/schemas/WorkspaceRole"
-        joinedAt:
+        createdAt:
           type: string
           format: date-time
 
@@ -1557,7 +1787,7 @@ components:
     ApiKey:
       type: object
       additionalProperties: false
-      required: [id, name, prefix, scopes, createdAt]
+      required: [id, name, prefix, createdAt]
       properties:
         id:
           type: string
@@ -1566,11 +1796,10 @@ components:
           type: string
         prefix:
           type: string
-        scopes:
-          type: array
-          items:
-            type: string
         lastUsedAt:
+          type: [string, "null"]
+          format: date-time
+        expiresAt:
           type: [string, "null"]
           format: date-time
         createdAt:
@@ -1580,9 +1809,12 @@ components:
     Webhook:
       type: object
       additionalProperties: false
-      required: [id, url, events, active, createdAt]
+      required: [id, workspaceId, url, events, active, createdAt, updatedAt]
       properties:
         id:
+          type: string
+          format: uuid
+        workspaceId:
           type: string
           format: uuid
         url:
@@ -1594,7 +1826,13 @@ components:
             type: string
         active:
           type: boolean
+        lastSentAt:
+          type: [string, "null"]
+          format: date-time
         createdAt:
+          type: string
+          format: date-time
+        updatedAt:
           type: string
           format: date-time
 
@@ -1625,3 +1863,4 @@ components:
 
 security:
   - bearerAuth: []
+  - accessCookie: []

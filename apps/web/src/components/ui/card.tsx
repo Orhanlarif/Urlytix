@@ -23,9 +23,10 @@ export function Card({
   return (
     <div
       className={cn(
-        'rounded-2xl border border-slate-800 bg-slate-900/80 shadow-xl shadow-black/20',
+        'rounded-[var(--radius-lg)] border border-[var(--card-border)] bg-[var(--card)] shadow-[var(--shadow-sm)]',
         paddingClasses[padding],
-        hover && 'transition hover:border-slate-700',
+        hover &&
+          'transition-all duration-200 ease-[var(--ease-out)] hover:-translate-y-0.5 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-md)]',
         className,
       )}
       {...props}
@@ -45,9 +46,9 @@ export function CardHeader({ title, description, action }: CardHeaderProps) {
   return (
     <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
       <div>
-        <h2 className="text-xl font-semibold">{title}</h2>
+        <h2 className="text-heading">{title}</h2>
         {description && (
-          <p className="mt-1 text-sm text-slate-400">{description}</p>
+          <p className="mt-1 text-sm text-[var(--muted-foreground)]">{description}</p>
         )}
       </div>
       {action}

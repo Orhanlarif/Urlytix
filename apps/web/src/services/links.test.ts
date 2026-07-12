@@ -17,7 +17,7 @@ describe('linksService', () => {
     apiRequestMock.mockReset();
   });
 
-  it('returns the paginated links response', async () => {
+  it('returns the paginated links response for a workspace', async () => {
     const response = {
       data: [],
       meta: {
@@ -29,7 +29,46 @@ describe('linksService', () => {
     };
     apiRequestMock.mockResolvedValue(response);
 
-    await expect(linksService.list()).resolves.toEqual(response);
-    expect(apiRequestMock).toHaveBeenCalledWith('/links', { token: null });
+    await expect(linksService.list('workspace-1')).resolves.toEqual(response);
+    expect(apiRequestMock).toHaveBeenCalledWith(
+      '/links?workspaceId=workspace-1',
+      { token: null },
+    );
+  });
+
+  it('passes page, search, and status query params', async () => {
+    apiRequestMock.mockResolvedValue({
+      data: [],
+      meta: { page: 2, pageSize: 10, total: 0, totalPages: 0 },
+    });
+
+    await linksService.list('workspace-1', {
+      page: 2,
+      limit: 10,
+      search: 'launch',
+      status: 'ACTIVE',
+    });
+
+    expect(apiRequestMock).toHaveBeenCalledWith(
+      '/links?workspaceId=workspace-1&page=2&limit=10&search=launch&status=ACTIVE',
+      { token: null },
+    );
+  });
+
+  it('creates a link in the selected workspace', async () => {
+    apiRequestMock.mockResolvedValue({ message: 'ok', link: { id: 'link-1' } });
+
+    await linksService.create('workspace-1', {
+      originalUrl: 'https://example.com',
+    });
+
+    expect(apiRequestMock).toHaveBeenCalledWith('/links', {
+      token: null,
+      method: 'POST',
+      body: {
+        originalUrl: 'https://example.com',
+        workspaceId: 'workspace-1',
+      },
+    });
   });
 });

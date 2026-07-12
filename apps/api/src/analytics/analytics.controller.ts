@@ -3,6 +3,7 @@ import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AnalyticsService } from './analytics.service';
 import { AnalyticsQueryDto } from './dto/analytics-query.dto';
+import { WorkspaceAnalyticsQueryDto } from './dto/workspace-analytics-query.dto';
 
 @Controller('analytics')
 export class AnalyticsController {
@@ -10,8 +11,15 @@ export class AnalyticsController {
 
   @UseGuards(JwtAuthGuard)
   @Get('overview')
-  getDashboardOverview(@Req() req: Request, @Query() query: AnalyticsQueryDto) {
-    return this.analyticsService.getDashboardOverview(req.user.sub, query);
+  getDashboardOverview(
+    @Req() req: Request,
+    @Query() query: WorkspaceAnalyticsQueryDto,
+  ) {
+    return this.analyticsService.getDashboardOverview(
+      req.user.sub,
+      query.workspaceId,
+      query,
+    );
   }
 
   @UseGuards(JwtAuthGuard)

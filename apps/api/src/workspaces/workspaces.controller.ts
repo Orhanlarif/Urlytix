@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -13,6 +14,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import {
   AddMemberDto,
   CreateWorkspaceDto,
+  UpdateMemberRoleDto,
   UpdateWorkspaceDto,
 } from './dto/workspace.dto';
 import { WorkspacesService } from './workspaces.service';
@@ -53,5 +55,24 @@ export class WorkspacesController {
     @Body() dto: AddMemberDto,
   ) {
     return this.service.addMember(req.user.sub, id, dto);
+  }
+
+  @Patch(':id/members/:userId')
+  updateMemberRole(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+    @Body() dto: UpdateMemberRoleDto,
+  ) {
+    return this.service.updateMemberRole(req.user.sub, id, userId, dto);
+  }
+
+  @Delete(':id/members/:userId')
+  removeMember(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+  ) {
+    return this.service.removeMember(req.user.sub, id, userId);
   }
 }

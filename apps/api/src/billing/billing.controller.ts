@@ -9,10 +9,12 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { BillingEnabledGuard } from './billing-enabled.guard';
 import { BillingService } from './billing.service';
 import { ChangePlanDto } from './dto/change-plan.dto';
 
 @Controller('billing')
+@UseGuards(BillingEnabledGuard)
 export class BillingController {
   constructor(private readonly service: BillingService) {}
 

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -7,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   AddMemberDto,
   CreateWorkspaceDto,
+  UpdateMemberRoleDto,
   UpdateWorkspaceDto,
 } from './dto/workspace.dto';
 
@@ -65,11 +67,93 @@ export class WorkspacesService {
     if (!user) {
       throw new NotFoundException('Kullanıcı bulunamadı.');
     }
+    if (user.id === userId) {
+      throw new BadRequestException('Kendini üye olarak ekleyemezsin.');
+    }
     return this.prisma.membership.upsert({
       where: { userId_workspaceId: { userId: user.id, workspaceId } },
       create: { userId: user.id, workspaceId, role: dto.role },
       update: { role: dto.role },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+      },
     });
+  }
+
+  async updateMemberRole(
+    actorUserId: string,
+    workspaceId: string,
+    memberUserId: string,
+    dto: UpdateMemberRoleDto,
+  ) {
+    await this.assertRole(actorUserId, workspaceId, ['OWNER', 'ADMIN']);
+    const membership = await this.prisma.membership.findUnique({
+      where: { userId_workspaceId: { userId: memberUserId, workspaceId } },
+    });
+    if (!membership) {
+      throw new NotFoundException('Üye bulunamadı.');
+    }
+    if (membership.role === 'OWNER') {
+      throw new ForbiddenException('Sahip rolü bu yolla değiştirilemez.');
+    }
+    if (actorUserId === memberUserId) {
+      throw new BadRequestException('Kendi rolünü değiştiremezsin.');
+    }
+
+    const actor = await this.prisma.membership.findUnique({
+      where: { userId_workspaceId: { userId: actorUserId, workspaceId } },
+    });
+    if (actor?.role === 'ADMIN' && membership.role === 'ADMIN') {
+      throw new ForbiddenException(
+        'Admin başka bir adminin rolünü değiştiremez.',
+      );
+    }
+
+    return this.prisma.membership.update({
+      where: { userId_workspaceId: { userId: memberUserId, workspaceId } },
+      data: { role: dto.role },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+      },
+    });
+  }
+
+  async removeMember(
+    actorUserId: string,
+    workspaceId: string,
+    memberUserId: string,
+  ) {
+    await this.assertRole(actorUserId, workspaceId, ['OWNER', 'ADMIN']);
+    const membership = await this.prisma.membership.findUnique({
+      where: { userId_workspaceId: { userId: memberUserId, workspaceId } },
+    });
+    if (!membership) {
+      throw new NotFoundException('Üye bulunamadı.');
+    }
+    if (membership.role === 'OWNER') {
+      throw new ForbiddenException('Workspace sahibi kaldırılamaz.');
+    }
+    if (actorUserId === memberUserId) {
+      throw new BadRequestException(
+        'Kendini bu yolla çıkaramazsın. Ayrı bir ayrılma akışı kullan.',
+      );
+    }
+
+    const actor = await this.prisma.membership.findUnique({
+      where: { userId_workspaceId: { userId: actorUserId, workspaceId } },
+    });
+    if (actor?.role === 'ADMIN' && membership.role === 'ADMIN') {
+      throw new ForbiddenException('Admin başka bir admini kaldıramaz.');
+    }
+
+    await this.prisma.membership.delete({
+      where: { userId_workspaceId: { userId: memberUserId, workspaceId } },
+    });
+
+    return {
+      message: 'Üye kaldırıldı.',
+      removedUserId: memberUserId,
+    };
   }
 
   async assertMember(userId: string, workspaceId: string) {

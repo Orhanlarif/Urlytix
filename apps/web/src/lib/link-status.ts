@@ -14,6 +14,21 @@ export function getLinkStatusLabel(status: LinkStatus, t: Translation) {
   }
 }
 
+export function getLinkStatusBadgeVariant(
+  status: LinkStatus,
+): 'success' | 'warning' | 'danger' | 'default' {
+  switch (status) {
+    case 'ACTIVE':
+      return 'success';
+    case 'DISABLED':
+      return 'warning';
+    case 'EXPIRED':
+      return 'danger';
+    default:
+      return 'default';
+  }
+}
+
 export function getLinkStatusBadgeClass(status: LinkStatus) {
   switch (status) {
     case 'ACTIVE':

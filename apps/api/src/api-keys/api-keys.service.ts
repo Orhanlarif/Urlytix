@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { WorkspacesService } from '../workspaces/workspaces.service';
@@ -51,10 +51,13 @@ export class ApiKeysService {
 
   async revoke(userId: string, workspaceId: string, id: string) {
     await this.workspaces.assertRole(userId, workspaceId, ['OWNER', 'ADMIN']);
-    await this.prisma.apiKey.updateMany({
+    const result = await this.prisma.apiKey.updateMany({
       where: { id, workspaceId },
       data: { revokedAt: new Date() },
     });
+    if (result.count === 0) {
+      throw new NotFoundException('API anahtarı bulunamadı.');
+    }
     return { message: 'API anahtarı iptal edildi.' };
   }
 }

@@ -8,7 +8,9 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { createHash, randomBytes } from 'crypto';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { provisionOwnerWorkspace } from '../workspaces/workspace-provisioning';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -40,21 +42,30 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(registerDto.password, 10);
 
-    const user = await this.prisma.user.create({
-      data: {
-        name: registerDto.name,
-        email: registerDto.email,
-        passwordHash,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        createdAt: true,
-      },
-    });
+    const { user, tokens } = await this.prisma.$transaction(async (tx) => {
+      const createdUser = await tx.user.create({
+        data: {
+          name: registerDto.name,
+          email: registerDto.email,
+          passwordHash,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          createdAt: true,
+        },
+      });
+      await provisionOwnerWorkspace(tx, createdUser);
+      const sessionTokens = await this.issueSession(
+        createdUser.id,
+        createdUser.email,
+        context,
+        tx,
+      );
 
-    const tokens = await this.issueSession(user.id, user.email, context);
+      return { user: createdUser, tokens: sessionTokens };
+    });
 
     return {
       message: 'Kayıt başarılı.',
@@ -218,7 +229,7 @@ export class AuthService {
     userId: string,
     email: string,
     context: SessionContext,
-    database: Pick<PrismaService, 'refreshSession'> = this.prisma,
+    database: Pick<Prisma.TransactionClient, 'refreshSession'> = this.prisma,
   ) {
     const refreshToken = randomBytes(48).toString('base64url');
     await database.refreshSession.create({

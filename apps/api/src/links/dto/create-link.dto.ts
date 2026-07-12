@@ -1,5 +1,6 @@
 import {
   IsISO8601,
+  IsNotEmpty,
   IsOptional,
   IsString,
   IsUrl,
@@ -9,6 +10,10 @@ import {
 } from 'class-validator';
 
 export class CreateLinkDto {
+  @IsString()
+  @IsNotEmpty()
+  workspaceId!: string;
+
   @IsUrl(
     {
       require_protocol: true,
@@ -36,4 +41,10 @@ export class CreateLinkDto {
   @IsOptional()
   @IsISO8601({}, { message: 'Geçerli bir bitiş tarihi gir.' })
   expiresAt?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(4)
+  @MaxLength(72)
+  password?: string;
 }

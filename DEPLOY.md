@@ -14,10 +14,10 @@ Bu doküman Urlytics'i production ortamına deploy etmek için adım adım rehbe
 
 1. Managed PostgreSQL oluştur (Neon, Supabase veya Railway).
 2. Connection string'i kopyala.
-3. Production'da migration çalıştır:
+3. Production'da migration, workspace backfill ve doğrulamayı tek gate olarak çalıştır:
 
 ```bash
-DATABASE_URL="postgresql://..." pnpm db:migrate:deploy
+DATABASE_URL="postgresql://..." pnpm --filter api deploy:database
 ```
 
 ## 2. Backend (API)
@@ -29,8 +29,10 @@ NODE_ENV=production
 PORT=4000
 DATABASE_URL=postgresql://user:pass@host:5432/urlytics_db
 JWT_SECRET=<en-az-32-karakter-rastgele-secret>
+REDIS_URL=rediss://cache-host:6379
 CORS_ORIGINS=https://yourdomain.com
 SHORT_URL_BASE=https://api.yourdomain.com/api/r
+BILLING_ENABLED=false
 ```
 
 ### Deploy adımları
@@ -39,10 +41,15 @@ SHORT_URL_BASE=https://api.yourdomain.com/api/r
 cd apps/api
 pnpm install
 pnpm exec prisma generate
-pnpm exec prisma migrate deploy
+pnpm deploy:database
 pnpm build
 pnpm start:prod
 ```
+
+`deploy:database` migrationları uygular, legacy workspace backfill'ini idempotent
+şekilde çalıştırır ve workspace'e bağlı olmayan link kalmışsa deploy'u durdurur.
+Yeni kayıtlar aynı transaction içinde kullanıcıya OWNER rolüyle varsayılan
+workspace oluşturur.
 
 ### Health check
 
@@ -71,6 +78,11 @@ Beklenen yanıt:
 NEXT_PUBLIC_API_URL=https://api.yourdomain.com/api
 ```
 
+Web oturumu API'nin yönettiği httpOnly `access_token` ve `refresh_token`
+cookie'lerine dayanır. Web ve API hostlarını aynı site altında tut; API
+`CORS_ORIGINS` değeri web origin'ini birebir içermeli ve credential'lı istekleri
+kabul etmelidir.
+
 ### Vercel deploy
 
 1. Repo'yu Vercel'e bağla.
@@ -93,11 +105,12 @@ Deploy sonrası `SHORT_URL_BASE` ve `CORS_ORIGINS` değerlerini production domai
 - [ ] `DATABASE_URL` production DB'ye işaret ediyor
 - [ ] `SHORT_URL_BASE` production API URL'si
 - [ ] `CORS_ORIGINS` production frontend URL'si
-- [ ] `pnpm db:migrate:deploy` çalıştırıldı
+- [ ] `pnpm --filter api deploy:database` başarılı (migrate → backfill → verify)
 - [ ] `/api/health` → `database: connected`
 - [ ] HTTPS aktif (hem API hem web)
 - [ ] Kısa link redirect test edildi
 - [ ] Login / register / dashboard akışı test edildi
+- [ ] `pnpm release:staging:gate` kontrollü staging URL/secret'larıyla başarılı
 
 ## 6. CI/CD
 
@@ -107,6 +120,7 @@ Repo'da GitHub Actions CI pipeline mevcut (`.github/workflows/ci.yml`):
 - Unit tests
 - E2E tests (PostgreSQL service container ile)
 - Build
+- Playwright web E2E release gate (Chromium)
 
 Her push ve PR'da otomatik çalışır.
 

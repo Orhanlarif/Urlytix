@@ -52,13 +52,13 @@ export default function HomePage() {
   ];
 
   return (
-    <main className="min-h-screen bg-slate-950 text-white">
+    <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute left-1/2 top-0 h-[28rem] w-[28rem] -translate-x-1/2 rounded-full bg-cyan-500/10 blur-3xl" />
+        <div className="absolute left-1/2 top-0 h-[28rem] w-[28rem] -translate-x-1/2 rounded-full bg-[var(--accent)]/10 blur-3xl" />
         <div className="absolute bottom-0 right-0 h-96 w-96 rounded-full bg-blue-500/10 blur-3xl" />
       </div>
 
-      <header className="relative border-b border-slate-800/80 bg-slate-950/80 backdrop-blur">
+      <header className="relative border-b border-[var(--border)] bg-[var(--background)]/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
           <Logo href="/" />
 
@@ -78,20 +78,20 @@ export default function HomePage() {
 
       <section className="relative mx-auto max-w-6xl px-6 pb-16 pt-16 lg:pt-24">
         <div className="grid items-center gap-12 lg:grid-cols-2">
-          <div>
+          <div className="animate-fade-in">
             <Badge variant="accent" className="mb-6 gap-1.5 px-4 py-2">
               <Sparkles className="h-3.5 w-3.5" />
               {t.landing.badge}
             </Badge>
 
-            <h1 className="text-4xl font-bold tracking-tight md:text-6xl">
+            <h1 className="text-display">
               {t.landing.title1}
-              <span className="mt-2 block bg-gradient-to-r from-cyan-300 to-blue-400 bg-clip-text text-transparent">
+              <span className="mt-2 block bg-gradient-to-r from-[var(--accent-hover)] to-blue-400 bg-clip-text text-transparent">
                 {t.landing.title2}
               </span>
             </h1>
 
-            <p className="mt-6 max-w-xl text-lg leading-8 text-slate-300">
+            <p className="mt-6 max-w-xl text-lg leading-8 text-[var(--muted-foreground)]">
               {t.landing.description}
             </p>
 
@@ -113,10 +113,10 @@ export default function HomePage() {
               {stats.map((stat) => (
                 <div
                   key={stat.label}
-                  className="rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-3"
+                  className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)]/60 px-4 py-3"
                 >
-                  <p className="text-lg font-bold text-cyan-300">{stat.value}</p>
-                  <p className="text-xs text-slate-500">{stat.label}</p>
+                  <p className="text-lg font-bold text-[var(--accent)]">{stat.value}</p>
+                  <p className="text-caption">{stat.label}</p>
                 </div>
               ))}
             </div>
@@ -128,8 +128,8 @@ export default function HomePage() {
 
       <section className="relative mx-auto max-w-6xl px-6 pb-24">
         <div className="mb-10 text-center">
-          <h2 className="text-3xl font-bold">{t.landing.featuresTitle}</h2>
-          <p className="mx-auto mt-3 max-w-2xl text-slate-400">
+          <h2 className="text-heading-lg">{t.landing.featuresTitle}</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-[var(--muted-foreground)]">
             {t.landing.featuresSubtitle}
           </p>
         </div>
@@ -140,11 +140,11 @@ export default function HomePage() {
 
             return (
               <Card key={feature.title} hover className="group">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-400/20 bg-cyan-400/10 text-cyan-300 transition group-hover:bg-cyan-400/20">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent)] transition group-hover:bg-[var(--accent-muted)]">
                   <Icon className="h-5 w-5" />
                 </div>
-                <h3 className="mt-4 text-lg font-semibold">{feature.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-400">
+                <h3 className="text-heading mt-4">{feature.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">
                   {feature.description}
                 </p>
               </Card>
@@ -154,15 +154,15 @@ export default function HomePage() {
       </section>
 
       <section className="relative mx-auto max-w-6xl px-6 pb-24">
-        <Card padding="lg" className="text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10">
-            <MousePointerClick className="h-6 w-6 text-cyan-300" />
+        <Card padding="lg" className="text-center shadow-[var(--shadow-glow)]">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--accent-border)] bg-[var(--accent-soft)]">
+            <MousePointerClick className="h-6 w-6 text-[var(--accent)]" />
           </div>
 
-          <h2 className="mt-6 text-3xl font-bold md:text-4xl">
+          <h2 className="text-heading-lg mt-6">
             {t.landing.ctaTitle}
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-slate-400">
+          <p className="mx-auto mt-4 max-w-2xl text-[var(--muted-foreground)]">
             {t.landing.ctaDesc}
           </p>
 
@@ -181,7 +181,7 @@ export default function HomePage() {
         </Card>
       </section>
 
-      <footer className="relative border-t border-slate-800/80 py-8 text-center text-sm text-slate-500">
+      <footer className="relative border-t border-[var(--border)] py-8 text-center text-sm text-[var(--muted-foreground)]">
         <p>© {new Date().getFullYear()} {t.landing.footer}</p>
       </footer>
     </main>
@@ -198,16 +198,16 @@ function DashboardPreview() {
   ];
 
   return (
-    <div className="relative">
-      <div className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-cyan-400/20 to-blue-500/10 blur-2xl" />
+    <div className="relative animate-fade-in">
+      <div className="absolute -inset-6 rounded-3xl bg-gradient-to-br from-[var(--accent)]/25 via-blue-500/10 to-transparent blur-2xl" />
 
-      <Card className="relative overflow-hidden border-slate-700/80 p-0">
-        <div className="border-b border-slate-800 bg-slate-900 px-4 py-3">
+      <Card className="relative overflow-hidden border-[var(--border-strong)] p-0 shadow-[var(--shadow-glow)]">
+        <div className="border-b border-[var(--border)] bg-[var(--surface-raised)] px-4 py-3">
           <div className="flex items-center gap-2">
             <div className="h-3 w-3 rounded-full bg-red-400/80" />
             <div className="h-3 w-3 rounded-full bg-amber-400/80" />
             <div className="h-3 w-3 rounded-full bg-emerald-400/80" />
-            <span className="ml-2 text-xs text-slate-500">
+            <span className="ml-2 text-xs text-[var(--muted-foreground)]">
               {t.landing.previewUrl}
             </span>
           </div>
@@ -218,24 +218,24 @@ function DashboardPreview() {
             {previewMetrics.map((metric) => (
               <div
                 key={metric.label}
-                className="rounded-xl border border-slate-800 bg-slate-950 p-3"
+                className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-3"
               >
-                <p className="text-xs text-slate-500">{metric.label}</p>
-                <p className="mt-1 text-xl font-bold text-cyan-300">
+                <p className="text-caption">{metric.label}</p>
+                <p className="mt-1 text-xl font-bold text-[var(--accent)]">
                   {metric.value}
                 </p>
               </div>
             ))}
           </div>
 
-          <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
-            <p className="text-xs text-slate-500">{t.landing.previewLast14}</p>
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-4">
+            <p className="text-caption">{t.landing.previewLast14}</p>
             <div className="mt-4 flex h-24 items-end gap-1.5">
               {[40, 65, 45, 80, 55, 90, 70, 85, 60, 95, 75, 88, 72, 100].map(
                 (height, index) => (
                   <div
                     key={index}
-                    className="flex-1 rounded-t bg-gradient-to-t from-cyan-500/80 to-cyan-300/80"
+                    className="flex-1 rounded-t bg-gradient-to-t from-[var(--accent-active)] to-[var(--accent-hover)]"
                     style={{ height: `${height}%` }}
                   />
                 ),
@@ -247,15 +247,15 @@ function DashboardPreview() {
             {['Portfolio', 'Blog post', 'Campaign'].map((title, index) => (
               <div
                 key={title}
-                className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950 px-4 py-3"
+                className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3"
               >
                 <div>
                   <p className="text-sm font-medium">{title}</p>
-                  <p className="text-xs text-cyan-400/80">
+                  <p className="text-xs text-[var(--accent)]/80">
                     urlytics.app/r/{title.toLowerCase().replace(' ', '-')}
                   </p>
                 </div>
-                <span className="text-sm text-slate-400">
+                <span className="text-sm text-[var(--muted-foreground)]">
                   {[312, 189, 94][index]} {t.common.clicks}
                 </span>
               </div>

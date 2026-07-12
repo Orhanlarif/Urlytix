@@ -2,10 +2,22 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, LayoutDashboard, Link2, LogOut, Settings, UserCircle } from 'lucide-react';
+import {
+  BarChart3,
+  LayoutDashboard,
+  Link2,
+  LogOut,
+  Plus,
+  Settings,
+  UserCircle,
+} from 'lucide-react';
 import { ReactNode } from 'react';
+import { Button } from '@/components/ui/button';
+import { DropdownItem, DropdownMenu } from '@/components/ui/dropdown-menu';
 import { LanguageToggle } from '@/components/ui/language-toggle';
 import { Logo } from '@/components/ui/logo';
+import { WorkspaceSwitcher } from '@/components/workspace-switcher';
+import { useCurrentUser } from '@/hooks/use-current-user';
 import { useLanguage } from '@/i18n/language-provider';
 import { cn } from '@/lib/utils';
 import { authService } from '@/services/auth';
@@ -17,6 +29,7 @@ type AppShellProps = {
 export function AppShell({ children }: AppShellProps) {
   const { t } = useLanguage();
   const pathname = usePathname();
+  const { user } = useCurrentUser();
 
   const navItems = [
     { label: t.nav.dashboard, href: '/dashboard', icon: LayoutDashboard },
@@ -33,20 +46,45 @@ export function AppShell({ children }: AppShellProps) {
     return pathname === href || pathname.startsWith(`${href}/`);
   }
 
+  const displayName = user?.name?.trim() || user?.email || t.nav.account;
+  const displayEmail = user?.email ?? 'Urlytics';
+
   return (
-    <div className="min-h-screen bg-[var(--background)] text-white">
+    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
+      <a
+        href="#main-content"
+        className="fixed left-4 top-4 z-[110] -translate-y-24 rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--accent-foreground)] transition focus:translate-y-0"
+      >
+        {t.common.skipToContent}
+      </a>
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute left-0 top-0 h-[32rem] w-[32rem] rounded-full bg-cyan-500/8 blur-3xl" />
+        <div className="absolute left-0 top-0 h-[32rem] w-[32rem] rounded-full bg-[var(--accent)]/8 blur-3xl" />
         <div className="absolute bottom-0 right-0 h-96 w-96 rounded-full bg-blue-500/8 blur-3xl" />
       </div>
 
       <div className="relative flex min-h-screen">
-        <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-800/80 bg-[#090e18]/95 backdrop-blur lg:flex">
-          <div className="border-b border-slate-800/80 px-6 py-6">
+        <aside className="hidden w-64 shrink-0 flex-col border-r border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur lg:flex">
+          <div className="border-b border-[var(--border)] px-6 py-6">
             <Logo href="/dashboard" showTagline />
           </div>
 
-          <nav className="flex-1 space-y-1 px-4 py-6">
+          <div className="border-b border-[var(--border)] px-4 py-4">
+            <WorkspaceSwitcher />
+          </div>
+
+          <div className="border-b border-[var(--border)] px-4 py-4">
+            <Link href="/links" className="block">
+              <Button variant="primary" fullWidth>
+                <Plus className="h-4 w-4" />
+                {t.nav.newLink}
+              </Button>
+            </Link>
+          </div>
+
+          <nav
+            aria-label={t.common.mainNavigation}
+            className="flex-1 space-y-1 px-4 py-5"
+          >
             {navItems.map((item) => {
               const active = isActive(item.href);
               const Icon = item.icon;
@@ -55,11 +93,12 @@ export function AppShell({ children }: AppShellProps) {
                 <Link
                   key={item.href}
                   href={item.href}
+                  aria-current={active ? 'page' : undefined}
                   className={cn(
                     'flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
                     active
-                      ? 'border border-cyan-400/20 bg-cyan-400/10 text-cyan-200'
-                      : 'text-slate-400 hover:bg-slate-900 hover:text-slate-100',
+                      ? 'border border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent)]'
+                      : 'text-[var(--muted-foreground)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]',
                   )}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
@@ -69,21 +108,24 @@ export function AppShell({ children }: AppShellProps) {
             })}
           </nav>
 
-          <div className="space-y-3 border-t border-slate-800/80 p-4">
-            <div className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3">
-              <div className="grid h-9 w-9 place-items-center rounded-lg bg-cyan-400/10 text-cyan-300">
+          <div className="space-y-3 border-t border-[var(--border)] p-4">
+            <div className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-raised)]/60 p-3">
+              <div className="grid h-9 w-9 place-items-center rounded-lg bg-[var(--accent-soft)] text-[var(--accent)]">
                 <UserCircle className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{t.nav.account}</p>
-                <p className="truncate text-xs text-slate-500">Urlytics</p>
+                <p className="truncate text-sm font-medium">{displayName}</p>
+                <p className="truncate text-xs text-[var(--muted-foreground)]">
+                  {displayEmail}
+                </p>
               </div>
             </div>
             <LanguageToggle className="w-full justify-center" size="sm" />
 
             <button
               onClick={handleLogout}
-              className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-slate-400 transition hover:bg-slate-900 hover:text-slate-100"
+              aria-label={t.common.logout}
+              className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-[var(--muted-foreground)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
             >
               <LogOut className="h-4 w-4" />
               {t.common.logout}
@@ -92,22 +134,48 @@ export function AppShell({ children }: AppShellProps) {
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-20 border-b border-slate-800/80 bg-slate-950/90 backdrop-blur lg:hidden">
+          <header className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--background)]/90 backdrop-blur lg:hidden">
             <div className="flex items-center justify-between gap-3 px-4 py-4">
               <Logo href="/dashboard" size="sm" />
 
               <div className="flex items-center gap-2">
-                <LanguageToggle size="sm" />
-                <button
-                  onClick={handleLogout}
-                  className="rounded-xl border border-slate-800 px-3 py-2 text-sm text-slate-400"
+                <Link
+                  href="/links"
+                  aria-label={t.nav.quickCreateLink}
+                  className="grid h-9 w-9 place-items-center rounded-xl border border-[var(--border)] text-[var(--muted-foreground)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
                 >
-                  {t.common.logoutShort}
-                </button>
+                  <Plus className="h-4 w-4" />
+                </Link>
+
+                <DropdownMenu label={t.nav.accountMenu}>
+                  <div className="px-3 py-2">
+                    <p className="truncate text-sm font-medium text-[var(--foreground)]">
+                      {displayName}
+                    </p>
+                    <p className="truncate text-xs text-[var(--muted-foreground)]">
+                      {displayEmail}
+                    </p>
+                  </div>
+                  <div className="my-1 border-t border-[var(--border)]" />
+                  <div className="flex justify-center px-1 py-1">
+                    <LanguageToggle size="sm" />
+                  </div>
+                  <div className="my-1 border-t border-[var(--border)]" />
+                  <DropdownItem danger onClick={handleLogout}>
+                    <LogOut className="h-4 w-4" />
+                    {t.common.logout}
+                  </DropdownItem>
+                </DropdownMenu>
               </div>
             </div>
+            <div className="px-4 pb-3">
+              <WorkspaceSwitcher compact />
+            </div>
 
-            <nav className="grid grid-cols-4 gap-1 px-3 pb-3">
+            <nav
+              aria-label={t.common.mainNavigation}
+              className="grid grid-cols-4 gap-1 px-3 pb-3"
+            >
               {navItems.map((item) => {
                 const active = isActive(item.href);
                 const Icon = item.icon;
@@ -116,11 +184,12 @@ export function AppShell({ children }: AppShellProps) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    aria-current={active ? 'page' : undefined}
                     className={cn(
                       'flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[11px] font-medium transition',
                       active
-                        ? 'border border-cyan-400/20 bg-cyan-400/10 text-cyan-200'
-                        : 'border border-slate-800 text-slate-400',
+                        ? 'border border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent)]'
+                        : 'border border-[var(--border)] text-[var(--muted-foreground)]',
                     )}
                   >
                     <Icon className="h-4 w-4" />
@@ -131,7 +200,11 @@ export function AppShell({ children }: AppShellProps) {
             </nav>
           </header>
 
-          <main className="flex-1 px-4 py-7 sm:px-6 lg:px-8 lg:py-9">
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className="flex-1 px-4 py-7 sm:px-6 lg:px-8 lg:py-9"
+          >
             <div className="mx-auto max-w-7xl">{children}</div>
           </main>
         </div>

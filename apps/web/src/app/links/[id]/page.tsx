@@ -2,14 +2,17 @@
 
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Bot,
   Link2,
   MousePointerClick,
+  QrCode,
   TrendingUp,
   Users,
 } from 'lucide-react';
+import { DailyClicksChart } from '@/components/analytics/daily-clicks-chart';
 import { AppShell } from '@/components/layout/app-shell';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,7 +22,14 @@ import { ErrorBanner } from '@/components/ui/error-banner';
 import { Input } from '@/components/ui/input';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { MetricCard } from '@/components/ui/metric-card';
+import { Modal } from '@/components/ui/modal';
+import { Tabs } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/toast';
+import { useWorkspace } from '@/contexts/workspace-context';
+import {
+  useLinkAnalytics,
+  workspaceQueryKeys,
+} from '@/hooks/use-workspace-data';
 import { interpolate } from '@/i18n';
 import { useLanguage } from '@/i18n/language-provider';
 import { formatDate, formatDateTime, truncateText } from '@/lib/format';
@@ -30,9 +40,8 @@ import {
   isLinkOperational,
 } from '@/lib/link-status';
 import { createQrCodeDataUrl } from '@/lib/qr';
-import { analyticsService } from '@/services/analytics';
 import { linksService } from '@/services/links';
-import type { DailyClick, GroupedStat, LinkAnalytics } from '@/types/analytics';
+import type { GroupedStat, LinkAnalytics } from '@/types/analytics';
 import type {
   LinkStatus,
 } from '@/types/links';
@@ -41,48 +50,52 @@ export default function LinkDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const linkId = params.id;
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const { currentWorkspace, isLoading: workspaceLoading } = useWorkspace();
+  const queryClient = useQueryClient();
+  const analyticsQuery = useLinkAnalytics(currentWorkspace?.id, linkId, {
+    days: 14,
+  });
+  const analytics = analyticsQuery.data;
 
-  const [analytics, setAnalytics] = useState<LinkAnalytics | null>(null);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [isQrLoading, setIsQrLoading] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editOriginalUrl, setEditOriginalUrl] = useState('');
   const [editExpiresAt, setEditExpiresAt] = useState('');
-  const [detailTab, setDetailTab] = useState<'overview' | 'traffic' | 'clicks' | 'settings'>('overview');
+  const [editPassword, setEditPassword] = useState('');
+  const [clearPassword, setClearPassword] = useState(false);
+  const analyticsKey = workspaceQueryKeys.linkAnalytics(
+    currentWorkspace?.id ?? 'none',
+    linkId,
+    { days: 14 },
+  );
 
-  const maxDailyClick = useMemo(() => {
-    if (!analytics) return 0;
-    return Math.max(...analytics.dailyClicks.map((item) => item.clicks), 1);
-  }, [analytics]);
+  function updateCachedAnalytics(
+    updater: (current: LinkAnalytics | undefined) => LinkAnalytics | undefined,
+  ) {
+    queryClient.setQueryData<LinkAnalytics>(analyticsKey, updater);
+  }
 
   useEffect(() => {
-    async function loadAnalytics() {
-      try {
-        const data = await analyticsService.link(linkId);
-
-        setAnalytics(data);
-        setEditTitle(data.link.title ?? '');
-        setEditOriginalUrl(data.link.originalUrl);
-        setEditExpiresAt(
-          data.link.expiresAt ? toDateTimeLocalValue(data.link.expiresAt) : '',
-        );
-      } catch (err) {
-        setError(err instanceof Error ? err.message : t.linkDetail.loadFailed);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    loadAnalytics();
-  }, [linkId, router, t.linkDetail.loadFailed]);
+    if (!analytics) return;
+    setEditTitle(analytics.link.title ?? '');
+    setEditOriginalUrl(analytics.link.originalUrl);
+    setEditExpiresAt(
+      analytics.link.expiresAt
+        ? toDateTimeLocalValue(analytics.link.expiresAt)
+        : '',
+    );
+    setEditPassword('');
+    setClearPassword(false);
+  }, [analytics]);
 
   async function handleCopy() {
     if (!analytics) return;
@@ -121,6 +134,13 @@ export default function LinkDetailPage() {
     downloadLink.click();
   }
 
+  function handleOpenShare() {
+    setIsShareOpen(true);
+    if (!qrDataUrl) {
+      void handleGenerateQr();
+    }
+  }
+
   async function handleSaveEdit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!analytics) return;
@@ -135,15 +155,22 @@ export default function LinkDetailPage() {
             expiresAt: editExpiresAt
               ? new Date(editExpiresAt).toISOString()
               : null,
+            ...(clearPassword
+              ? { password: null }
+              : editPassword.trim()
+                ? { password: editPassword.trim() }
+                : {}),
       });
 
-      setAnalytics((current) => {
+      updateCachedAnalytics((current) => {
         if (!current) return current;
         return {
           ...current,
           link: { ...current.link, ...response.link },
         };
       });
+      setEditPassword('');
+      setClearPassword(false);
 
       showToast(t.linkDetail.saved);
     } catch (err) {
@@ -170,7 +197,7 @@ export default function LinkDetailPage() {
     try {
       const response = await linksService.updateStatus(analytics.link.id, nextStatus);
 
-      setAnalytics((current) => {
+      updateCachedAnalytics((current) => {
         if (!current) return current;
         return {
           ...current,
@@ -216,23 +243,34 @@ export default function LinkDetailPage() {
     }
   }
 
-  if (isLoading) {
+  if (
+    workspaceLoading ||
+    (analyticsQuery.isLoading && !analytics) ||
+    !currentWorkspace
+  ) {
     return <LoadingScreen text={t.linkDetail.loading} />;
   }
 
-  if (error && !analytics) {
+  if (analyticsQuery.error && !analytics) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 text-white">
-        <Card className="max-w-md text-center">
+      <AppShell>
+        <Card className="mx-auto max-w-md text-center">
           <h1 className="text-xl font-semibold text-red-100">
             {t.linkDetail.errorTitle}
           </h1>
-          <p className="mt-2 text-sm text-red-200/80">{error}</p>
-          <Link href="/links" className="mt-6 inline-block">
-            <Button variant="secondary">{t.common.backToLinks}</Button>
-          </Link>
+          <p className="mt-2 text-sm text-red-200/80">
+            {analyticsQuery.error.message}
+          </p>
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <Button onClick={() => void analyticsQuery.refetch()}>
+              {t.common.tryAgain}
+            </Button>
+            <Link href="/links">
+              <Button variant="secondary">{t.common.backToLinks}</Button>
+            </Link>
+          </div>
         </Card>
-      </main>
+      </AppShell>
     );
   }
 
@@ -254,187 +292,24 @@ export default function LinkDetailPage() {
     }, {}),
   ).map(([name, count]) => ({ name, count }));
 
-  return (
-    <AppShell>
-      <div role="tablist" className="mb-7 flex gap-1 overflow-x-auto border-b border-slate-800">
-        {([
-          ['overview', t.linkDetail.overview],
-          ['traffic', t.linkDetail.traffic],
-          ['clicks', t.linkDetail.clicksTab],
-          ['settings', t.linkDetail.settings],
-        ] as const).map(([id, label]) => (
-          <button
-            key={id}
-            role="tab"
-            aria-selected={detailTab === id}
-            onClick={() => setDetailTab(id)}
-            className={`whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium ${detailTab === id ? 'border-cyan-400 text-cyan-200' : 'border-transparent text-slate-400 hover:text-white'}`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <div className={`grid gap-6 ${detailTab === 'settings' ? 'lg:grid-cols-[1fr_360px]' : ''} lg:items-start`}>
-        <div className="min-w-0">
-          <Link href="/links" className="text-sm text-cyan-300 hover:underline">
-            ← {t.common.backToLinks}
-          </Link>
-
-          <Badge variant="accent" className="mt-5">
-            {t.linkDetail.badge}
-          </Badge>
-
-          <h1 className="mt-4 break-words text-3xl font-bold tracking-tight md:text-4xl">
-            {analytics.link.title ?? analytics.link.shortCode}
-          </h1>
-
-          <p className="mt-3 max-w-3xl break-all text-slate-400">
-            {truncateText(analytics.link.originalUrl, 120)}
-          </p>
-
-          <div className="mt-5 flex flex-wrap items-center gap-3">
-            <span className="rounded-xl border border-slate-800 bg-slate-900 px-4 py-2 text-sm text-cyan-300">
-              {analytics.link.shortUrl}
-            </span>
-
-            <Button size="sm" onClick={handleCopy}>
-              {copied ? t.common.copied : t.common.copy}
-            </Button>
-
-            {isActive ? (
-              <a
-                href={analytics.link.shortUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <Button variant="outline" size="sm">
-                  {t.common.testLink}
-                </Button>
-              </a>
-            ) : isExpired ? (
-              <Badge variant="danger">{t.linkDetail.expired}</Badge>
-            ) : (
-              <Badge variant="warning">{t.linkDetail.disabled}</Badge>
-            )}
-          </div>
-        </div>
-
-        <Card className={detailTab === 'settings' ? '' : 'hidden'}>
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm text-slate-400">{t.linkDetail.status}</p>
-              <span
-                className={`mt-2 inline-flex ${getLinkStatusBadgeClass(analytics.link.status)}`}
-              >
-                {getLinkStatusLabel(analytics.link.status, t)}
-              </span>
-            </div>
-            <div
-              className={
-                isActive
-                  ? 'h-3 w-3 rounded-full bg-emerald-400 shadow-lg shadow-emerald-400/40'
-                  : isExpired
-                    ? 'h-3 w-3 rounded-full bg-red-400 shadow-lg shadow-red-400/40'
-                    : 'h-3 w-3 rounded-full bg-amber-400 shadow-lg shadow-amber-400/40'
-              }
-            />
-          </div>
-
-          {isExpired && (
-            <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-              {t.linkDetail.expiredNotice}
-            </div>
-          )}
-
-          <p className="mt-4 text-sm text-slate-500">
-            {t.linkDetail.created}: {formatDate(analytics.link.createdAt)}
-          </p>
-
-          {analytics.link.expiresAt && (
-            <p className="mt-2 text-sm text-slate-500">
-              {t.linkDetail.expires}: {formatDateTime(analytics.link.expiresAt)}
+  const overviewContent = (
+    <div className="space-y-6">
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-eyebrow">{t.linkDetail.qrSection}</p>
+            <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+              {t.linkDetail.qrSectionDesc}
             </p>
-          )}
-
-          <form
-            onSubmit={handleSaveEdit}
-            className="mt-6 space-y-4 border-t border-slate-800 pt-6"
-          >
-            <Input
-              label={t.linkDetail.editTitle}
-              value={editTitle}
-              onChange={(event) => setEditTitle(event.target.value)}
-            />
-
-            <Input
-              label={t.linkDetail.targetUrl}
-              value={editOriginalUrl}
-              onChange={(event) => setEditOriginalUrl(event.target.value)}
-              type="url"
-              required
-            />
-
-            <Input
-              label={t.linkDetail.expiresAt}
-              value={editExpiresAt}
-              onChange={(event) => setEditExpiresAt(event.target.value)}
-              type="datetime-local"
-              hint={t.linkDetail.expiresHint}
-            />
-
-            <Button type="submit" disabled={isSavingEdit} fullWidth>
-              {isSavingEdit ? t.common.saving : t.linkDetail.saveChanges}
-            </Button>
-          </form>
-
-          <div className="mt-6 space-y-3">
-            {canToggle && (
-              <Button
-                variant={isActive ? 'outline' : 'secondary'}
-                onClick={handleToggleStatus}
-                disabled={isMutating}
-                fullWidth
-              >
-                {isMutating
-                  ? t.common.processing
-                  : isActive
-                    ? t.linkDetail.disableLink
-                    : t.linkDetail.enableLink}
-              </Button>
-            )}
-
-            <Button
-              variant="outline"
-              onClick={handleGenerateQr}
-              disabled={isQrLoading}
-              fullWidth
-            >
-              {isQrLoading ? t.linkDetail.qrGenerating : t.linkDetail.generateQr}
-            </Button>
-
-            {qrDataUrl && (
-              <Button onClick={handleDownloadQr} fullWidth>
-                {t.common.downloadPng}
-              </Button>
-            )}
-
-            <Button
-              variant="danger"
-              onClick={handleDeleteLink}
-              disabled={isMutating}
-              fullWidth
-            >
-              {t.linkDetail.deleteLink}
-            </Button>
           </div>
-        </Card>
-      </div>
+          <Button variant="outline" onClick={handleOpenShare}>
+            <QrCode className="h-4 w-4" />
+            {t.linkDetail.shareCta}
+          </Button>
+        </div>
+      </Card>
 
-      <div className="mt-6">
-        <ErrorBanner message={error} />
-      </div>
-
-      <div className={`${detailTab === 'overview' ? 'mt-8 grid' : 'hidden'} gap-4 md:grid-cols-2 xl:grid-cols-5`}>
+      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
         <MetricCard
           title={t.linkDetail.totalClicks}
           value={analytics.link.totalClicks}
@@ -467,137 +342,407 @@ export default function LinkDetailPage() {
         />
       </div>
 
-      {detailTab === 'overview' && qrDataUrl && (
-        <div className="mt-8 grid gap-6 lg:grid-cols-[320px_1fr]">
-          <Card>
-            <CardHeader
-              title={t.linkDetail.qrSection}
-              description={t.linkDetail.qrSectionDesc}
-            />
-            <div className="mt-6 rounded-2xl bg-white p-4">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={qrDataUrl}
-                alt={`${analytics.link.shortCode} QR`}
-                className="h-full w-full rounded-xl"
-              />
-            </div>
-          </Card>
-
-          <Card>
-            <CardHeader title={t.linkDetail.shareInfo} />
-            <div className="mt-6 space-y-4">
-              <div>
-                <p className="text-sm text-slate-400">{t.linkDetail.shortLink}</p>
-                <p className="mt-2 break-all rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-cyan-300">
-                  {analytics.link.shortUrl}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-slate-400">
-                  {t.linkDetail.targetUrlLabel}
-                </p>
-                <p className="mt-2 break-all rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-300">
-                  {analytics.link.originalUrl}
-                </p>
-              </div>
-              <Button onClick={handleDownloadQr}>{t.common.downloadPng}</Button>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      <Card className={detailTab === 'overview' ? 'mt-8' : 'hidden'}>
+      <Card>
         <CardHeader
           title={t.linkDetail.chartTitle}
           description={t.linkDetail.chartDesc}
         />
         <DailyClicksChart
           data={analytics.dailyClicks}
-          maxValue={maxDailyClick}
           clickLabel={t.common.click}
+          locale={locale}
         />
       </Card>
+    </div>
+  );
 
-      <div className={`${detailTab === 'traffic' ? 'mt-8 grid' : 'hidden'} gap-6 lg:grid-cols-2`}>
-        <StatsPanel
-          title={t.linkDetail.deviceStats}
-          items={analytics.deviceStats}
-          noDataLabel={t.linkDetail.noData}
-        />
-        <StatsPanel
-          title={t.linkDetail.browserStats}
-          items={analytics.browserStats}
-          noDataLabel={t.linkDetail.noData}
-        />
-        <StatsPanel
-          title={t.linkDetail.osStats}
-          items={analytics.osStats}
-          noDataLabel={t.linkDetail.noData}
-        />
-        <StatsPanel
-          title={t.linkDetail.referrerStats}
-          items={analytics.referrerStats}
-          noDataLabel={t.linkDetail.noData}
-        />
-        <StatsPanel
-          title={t.linkDetail.utmStats}
-          items={analytics.utmSourceStats ?? []}
-          noDataLabel={t.linkDetail.noData}
-        />
-        <StatsPanel
-          title={t.linkDetail.geoStats}
-          items={geoStats}
-          noDataLabel={t.linkDetail.noData}
+  const trafficContent = (
+    <div className="grid gap-6 lg:grid-cols-2">
+      <StatsPanel
+        title={t.linkDetail.deviceStats}
+        items={analytics.deviceStats}
+        noDataLabel={t.linkDetail.noData}
+      />
+      <StatsPanel
+        title={t.linkDetail.browserStats}
+        items={analytics.browserStats}
+        noDataLabel={t.linkDetail.noData}
+      />
+      <StatsPanel
+        title={t.linkDetail.osStats}
+        items={analytics.osStats}
+        noDataLabel={t.linkDetail.noData}
+      />
+      <StatsPanel
+        title={t.linkDetail.referrerStats}
+        items={analytics.referrerStats}
+        noDataLabel={t.linkDetail.noData}
+      />
+      <StatsPanel
+        title={t.linkDetail.utmStats}
+        items={analytics.utmSourceStats ?? []}
+        noDataLabel={t.linkDetail.noData}
+      />
+      <StatsPanel
+        title={t.linkDetail.geoStats}
+        items={geoStats}
+        noDataLabel={t.linkDetail.noData}
+      />
+    </div>
+  );
+
+  const clicksContent = (
+    <Card>
+      <CardHeader
+        title={t.linkDetail.recentClicks}
+        description={t.linkDetail.recentClicksDesc}
+      />
+
+      <div className="mt-6 hidden overflow-hidden rounded-2xl border border-[var(--border)] md:block">
+        <div className="grid grid-cols-[1.2fr_1fr_1fr_1fr_1fr] border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-xs uppercase tracking-wide text-[var(--muted-foreground)]">
+          <div>{t.linkDetail.time}</div>
+          <div>{t.linkDetail.device}</div>
+          <div>{t.linkDetail.browser}</div>
+          <div>{t.linkDetail.source}</div>
+          <div>{t.linkDetail.type}</div>
+        </div>
+
+        {analytics.recentClicks.length === 0 ? (
+          <div className="bg-[var(--surface)] p-6 text-sm text-[var(--muted-foreground)]">
+            {t.linkDetail.noClicks}
+          </div>
+        ) : (
+          analytics.recentClicks.map((click) => (
+            <div
+              key={click.id}
+              className="grid grid-cols-[1.2fr_1fr_1fr_1fr_1fr] gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-4 text-sm last:border-b-0"
+            >
+              <div className="text-[var(--foreground)]">
+                {formatDateTime(click.clickedAt, locale)}
+              </div>
+              <div className="text-[var(--muted-foreground)]">{click.deviceType}</div>
+              <div className="text-[var(--muted-foreground)]">
+                {click.browser ?? t.common.unknown} ·{' '}
+                {click.os ?? t.common.unknown}
+              </div>
+              <div className="break-all text-[var(--muted-foreground)]">
+                {click.referrer ?? t.common.direct}
+              </div>
+              <div>
+                <Badge variant={click.isBot ? 'warning' : 'success'}>
+                  {click.isBot ? t.common.bot : t.common.human}
+                </Badge>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="mt-6 space-y-3 md:hidden">
+        {analytics.recentClicks.length === 0 ? (
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 text-sm text-[var(--muted-foreground)]">
+            {t.linkDetail.noClicks}
+          </div>
+        ) : (
+          analytics.recentClicks.map((click) => (
+            <div
+              key={click.id}
+              className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-medium text-[var(--foreground)]">
+                  {formatDateTime(click.clickedAt, locale)}
+                </span>
+                <Badge variant={click.isBot ? 'warning' : 'success'}>
+                  {click.isBot ? t.common.bot : t.common.human}
+                </Badge>
+              </div>
+              <dl className="mt-3 grid grid-cols-2 gap-3">
+                <div>
+                  <dt className="text-caption">{t.linkDetail.device}</dt>
+                  <dd className="mt-1 text-[var(--foreground)]">{click.deviceType}</dd>
+                </div>
+                <div>
+                  <dt className="text-caption">{t.linkDetail.browser}</dt>
+                  <dd className="mt-1 text-[var(--foreground)]">
+                    {click.browser ?? t.common.unknown} ·{' '}
+                    {click.os ?? t.common.unknown}
+                  </dd>
+                </div>
+                <div className="col-span-2">
+                  <dt className="text-caption">{t.linkDetail.source}</dt>
+                  <dd className="mt-1 break-all text-[var(--foreground)]">
+                    {click.referrer ?? t.common.direct}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          ))
+        )}
+      </div>
+    </Card>
+  );
+
+  const settingsContent = (
+    <div className="max-w-2xl">
+      <Card>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm text-[var(--muted-foreground)]">{t.linkDetail.status}</p>
+            <span
+              className={`mt-2 inline-flex ${getLinkStatusBadgeClass(analytics.link.status)}`}
+            >
+              {getLinkStatusLabel(analytics.link.status, t)}
+            </span>
+          </div>
+          <div
+            className={
+              isActive
+                ? 'h-3 w-3 rounded-full bg-emerald-400 shadow-lg shadow-emerald-400/40'
+                : isExpired
+                  ? 'h-3 w-3 rounded-full bg-red-400 shadow-lg shadow-red-400/40'
+                  : 'h-3 w-3 rounded-full bg-amber-400 shadow-lg shadow-amber-400/40'
+            }
+          />
+        </div>
+
+        {isExpired && (
+          <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            {t.linkDetail.expiredNotice}
+          </div>
+        )}
+
+        <p className="mt-4 text-sm text-[var(--muted-foreground)]">
+          {t.linkDetail.created}: {formatDate(analytics.link.createdAt, locale)}
+        </p>
+
+        {analytics.link.expiresAt && (
+          <p className="mt-2 text-sm text-[var(--muted-foreground)]">
+            {t.linkDetail.expires}:{' '}
+            {formatDateTime(analytics.link.expiresAt, locale)}
+          </p>
+        )}
+
+        <form
+          onSubmit={handleSaveEdit}
+          className="mt-6 space-y-4 border-t border-[var(--border)] pt-6"
+        >
+          <Input
+            label={t.linkDetail.editTitle}
+            value={editTitle}
+            onChange={(event) => setEditTitle(event.target.value)}
+          />
+
+          <Input
+            label={t.linkDetail.targetUrl}
+            value={editOriginalUrl}
+            onChange={(event) => setEditOriginalUrl(event.target.value)}
+            type="url"
+            required
+          />
+
+          <Input
+            label={t.linkDetail.expiresAt}
+            value={editExpiresAt}
+            onChange={(event) => setEditExpiresAt(event.target.value)}
+            type="datetime-local"
+            hint={t.linkDetail.expiresHint}
+          />
+
+          {analytics.link.hasPassword && (
+            <p className="rounded-xl border border-amber-400/20 bg-amber-400/5 px-4 py-3 text-sm text-amber-100">
+              {t.linkDetail.passwordProtected}
+            </p>
+          )}
+
+          <Input
+            label={t.linkDetail.password}
+            value={editPassword}
+            onChange={(event) => {
+              setEditPassword(event.target.value);
+              if (event.target.value) setClearPassword(false);
+            }}
+            type="password"
+            autoComplete="new-password"
+            minLength={4}
+            maxLength={72}
+            disabled={clearPassword}
+            placeholder={t.linkDetail.passwordPlaceholder}
+            hint={t.linkDetail.passwordHint}
+          />
+
+          {analytics.link.hasPassword && (
+            <label className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--muted)]">
+              <input
+                type="checkbox"
+                checked={clearPassword}
+                onChange={(event) => {
+                  setClearPassword(event.target.checked);
+                  if (event.target.checked) setEditPassword('');
+                }}
+                className="h-4 w-4 rounded border-[var(--border-strong)] bg-[var(--surface)] text-[var(--accent)]"
+              />
+              {t.linkDetail.clearPassword}
+            </label>
+          )}
+
+          <Button type="submit" disabled={isSavingEdit} fullWidth>
+            {isSavingEdit ? t.common.saving : t.linkDetail.saveChanges}
+          </Button>
+        </form>
+
+        <div className="mt-6 space-y-3">
+          {canToggle && (
+            <Button
+              variant={isActive ? 'outline' : 'secondary'}
+              onClick={handleToggleStatus}
+              disabled={isMutating}
+              fullWidth
+            >
+              {isMutating
+                ? t.common.processing
+                : isActive
+                  ? t.linkDetail.disableLink
+                  : t.linkDetail.enableLink}
+            </Button>
+          )}
+
+          <Button
+            variant="outline"
+            onClick={handleOpenShare}
+            disabled={isQrLoading}
+            fullWidth
+          >
+            {isQrLoading ? t.linkDetail.qrGenerating : t.linkDetail.generateQr}
+          </Button>
+
+          <Button
+            variant="danger"
+            onClick={handleDeleteLink}
+            disabled={isMutating}
+            fullWidth
+          >
+            {t.linkDetail.deleteLink}
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
+
+  return (
+    <AppShell>
+      <div className="min-w-0">
+        <Link href="/links" className="text-sm text-[var(--accent)] hover:underline">
+          ← {t.common.backToLinks}
+        </Link>
+
+        <Badge variant="accent" className="mt-5">
+          {t.linkDetail.badge}
+        </Badge>
+
+        <h1 className="mt-4 break-words text-3xl font-bold tracking-tight md:text-4xl">
+          {analytics.link.title ?? analytics.link.shortCode}
+        </h1>
+
+        <p className="mt-3 max-w-3xl break-all text-[var(--muted-foreground)]">
+          {truncateText(analytics.link.originalUrl, 120)}
+        </p>
+
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <span className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm text-[var(--accent)]">
+            {analytics.link.shortUrl}
+          </span>
+
+          <Button size="sm" onClick={handleCopy}>
+            {copied ? t.common.copied : t.common.copy}
+          </Button>
+
+          {isActive ? (
+            <a href={analytics.link.shortUrl} target="_blank" rel="noreferrer">
+              <Button variant="outline" size="sm">
+                {t.common.testLink}
+              </Button>
+            </a>
+          ) : isExpired ? (
+            <Badge variant="danger">{t.linkDetail.expired}</Badge>
+          ) : (
+            <Badge variant="warning">{t.linkDetail.disabled}</Badge>
+          )}
+
+          <Button variant="outline" size="sm" onClick={handleOpenShare}>
+            <QrCode className="h-4 w-4" />
+            {t.linkDetail.shareCta}
+          </Button>
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <ErrorBanner message={error} />
+      </div>
+
+      <div className="mt-8">
+        <Tabs
+          variant="pill"
+          tabs={[
+            { id: 'overview', label: t.linkDetail.overview, content: overviewContent },
+            { id: 'traffic', label: t.linkDetail.traffic, content: trafficContent },
+            { id: 'clicks', label: t.linkDetail.clicksTab, content: clicksContent },
+            { id: 'settings', label: t.linkDetail.settings, content: settingsContent },
+          ]}
         />
       </div>
 
-      <Card className={detailTab === 'clicks' ? 'mt-8' : 'hidden'}>
-        <CardHeader
-          title={t.linkDetail.recentClicks}
-          description={t.linkDetail.recentClicksDesc}
-        />
-
-        <div className="mt-6 overflow-hidden rounded-2xl border border-slate-800">
-          <div className="hidden grid-cols-[1.2fr_1fr_1fr_1fr_1fr] border-b border-slate-800 bg-slate-950 px-4 py-3 text-xs uppercase tracking-wide text-slate-500 md:grid">
-            <div>{t.linkDetail.time}</div>
-            <div>{t.linkDetail.device}</div>
-            <div>{t.linkDetail.browser}</div>
-            <div>{t.linkDetail.source}</div>
-            <div>{t.linkDetail.type}</div>
-          </div>
-
-          {analytics.recentClicks.length === 0 ? (
-            <div className="bg-slate-950 p-6 text-sm text-slate-400">
-              {t.linkDetail.noClicks}
+      <Modal
+        open={isShareOpen}
+        onClose={() => setIsShareOpen(false)}
+        title={t.linkDetail.qrSection}
+        description={t.linkDetail.qrSectionDesc}
+        closeLabel={t.common.close}
+      >
+        <div className="rounded-2xl border border-[var(--border)] bg-white p-4">
+          {isQrLoading ? (
+            <div
+              role="status"
+              className="flex h-64 items-center justify-center text-sm text-[var(--muted-foreground)]"
+            >
+              {t.linkDetail.qrGenerating}
             </div>
+          ) : qrDataUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={qrDataUrl}
+              alt={`${analytics.link.shortCode} QR`}
+              className="h-full w-full rounded-xl"
+            />
           ) : (
-            analytics.recentClicks.map((click) => (
-              <div
-                key={click.id}
-                className="grid gap-3 border-b border-slate-800 bg-slate-950 px-4 py-4 text-sm last:border-b-0 md:grid-cols-[1.2fr_1fr_1fr_1fr_1fr]"
-              >
-                <div className="text-slate-300">
-                  {formatDateTime(click.clickedAt)}
-                </div>
-                <div className="text-slate-400">{click.deviceType}</div>
-                <div className="text-slate-400">
-                  {click.browser ?? t.common.unknown} ·{' '}
-                  {click.os ?? t.common.unknown}
-                </div>
-                <div className="break-all text-slate-400">
-                  {click.referrer ?? t.common.direct}
-                </div>
-                <div>
-                  <Badge variant={click.isBot ? 'warning' : 'success'}>
-                    {click.isBot ? t.common.bot : t.common.human}
-                  </Badge>
-                </div>
-              </div>
-            ))
+            <div className="flex h-64 items-center justify-center text-sm text-[var(--muted-foreground)]">
+              {t.linkDetail.qrFailed}
+            </div>
           )}
         </div>
-      </Card>
+
+        <div>
+          <p className="mt-4 text-sm text-[var(--muted-foreground)]">
+            {t.linkDetail.shortLink}
+          </p>
+          <p className="mt-2 break-all rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--accent)]">
+            {analytics.link.shortUrl}
+          </p>
+        </div>
+
+        <div className="mt-5 flex gap-3">
+          <Button
+            onClick={handleDownloadQr}
+            disabled={!qrDataUrl || isQrLoading}
+            fullWidth
+          >
+            {t.common.downloadPng}
+          </Button>
+          <Button variant="secondary" onClick={handleCopy} fullWidth>
+            {copied ? t.common.copied : t.common.copyLink}
+          </Button>
+        </div>
+      </Modal>
     </AppShell>
   );
 }
@@ -607,42 +752,6 @@ function toDateTimeLocalValue(value: string) {
   const offset = date.getTimezoneOffset();
   const local = new Date(date.getTime() - offset * 60_000);
   return local.toISOString().slice(0, 16);
-}
-
-function DailyClicksChart({
-  data,
-  maxValue,
-  clickLabel,
-}: {
-  data: DailyClick[];
-  maxValue: number;
-  clickLabel: string;
-}) {
-  return (
-    <div className="mt-8 flex h-64 items-end gap-2 border-b border-slate-800 pb-4">
-      {data.map((item) => {
-        const height = Math.max(
-          (item.clicks / maxValue) * 100,
-          item.clicks > 0 ? 8 : 2,
-        );
-
-        return (
-          <div key={item.date} className="flex flex-1 flex-col items-center gap-3">
-            <div className="flex h-52 w-full items-end">
-              <div
-                className="w-full rounded-t-xl bg-cyan-400/80 transition hover:bg-cyan-300"
-                style={{ height: `${height}%` }}
-                title={`${item.date}: ${item.clicks} ${clickLabel}`}
-              />
-            </div>
-            <div className="text-center text-[10px] text-slate-500">
-              {item.date.slice(5)}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
 }
 
 function StatsPanel({
@@ -661,7 +770,7 @@ function StatsPanel({
       <h2 className="text-xl font-semibold">{title}</h2>
       <div className="mt-6 space-y-4">
         {items.length === 0 ? (
-          <p className="text-sm text-slate-400">{noDataLabel}</p>
+          <p className="text-sm text-[var(--muted-foreground)]">{noDataLabel}</p>
         ) : (
           items.map((item) => {
             const percent =
@@ -670,14 +779,14 @@ function StatsPanel({
             return (
               <div key={item.name}>
                 <div className="flex items-center justify-between gap-4 text-sm">
-                  <span className="text-slate-300">{item.name}</span>
-                  <span className="text-slate-500">
+                  <span className="text-[var(--foreground)]">{item.name}</span>
+                  <span className="text-[var(--muted-foreground)]">
                     {item.count} · {percent}%
                   </span>
                 </div>
-                <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-800">
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--surface-raised)]">
                   <div
-                    className="h-full rounded-full bg-cyan-400"
+                    className="h-full rounded-full bg-[var(--accent)]"
                     style={{ width: `${Math.max(percent, 4)}%` }}
                   />
                 </div>

@@ -1,7 +1,19 @@
 import { Transform } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import {
+  IsIn,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class ListLinksQueryDto {
+  @IsString()
+  @IsNotEmpty()
+  workspaceId!: string;
+
   @IsOptional()
   @Transform(({ value }: { value: unknown }) => Number(value))
   @IsInt()

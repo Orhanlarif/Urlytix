@@ -13,10 +13,14 @@
     "db:migrate:deploy": "pnpm --filter api exec prisma migrate deploy",
     "lint": "pnpm --filter @urlytics/shared lint && pnpm --filter api lint:check && pnpm --filter web lint",
     "test": "pnpm --filter api test && pnpm --filter web test",
-    "test:e2e": "pnpm --filter api test:e2e",
+    "test:api:e2e": "pnpm --filter api test:e2e",
+    "test:web:e2e": "pnpm --filter web test:e2e",
+    "test:e2e": "pnpm test:api:e2e && pnpm test:web:e2e",
     "prisma:generate": "pnpm --filter api exec prisma generate",
     "db:validate": "pnpm --filter api exec prisma validate",
+    "release:staging:gate": "node scripts/staging-release-gate.mjs",
+    "release:staging:smoke": "node scripts/staging-release-gate.mjs --smoke-only",
     "build": "pnpm prisma:generate && pnpm -r build",
-    "ci": "pnpm prisma:generate && pnpm db:validate && pnpm lint && pnpm test && pnpm test:e2e && pnpm build"
+    "ci": "pnpm prisma:generate && pnpm db:validate && pnpm lint && pnpm test && pnpm test:api:e2e && pnpm build && pnpm test:web:e2e"
   }
 }

@@ -17,6 +17,13 @@ describe('AuthService', () => {
       findUnique: jest.fn(),
       create: jest.fn(),
     },
+    membership: {
+      findFirst: jest.fn(),
+    },
+    workspace: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+    },
     refreshSession: {
       create: jest.fn(),
       findUnique: jest.fn(),
@@ -49,13 +56,20 @@ describe('AuthService', () => {
   });
 
   describe('register', () => {
-    it('creates a user and returns access token', async () => {
+    it('creates a user, owner workspace, and refresh session atomically', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
+      prisma.membership.findFirst.mockResolvedValue(null);
+      prisma.workspace.findUnique.mockResolvedValue(null);
       prisma.user.create.mockResolvedValue({
         id: 'user-1',
         name: 'Test User',
         email: 'test@example.com',
         createdAt: new Date(),
+      });
+      prisma.workspace.create.mockResolvedValue({
+        id: 'workspace-1',
+        name: "Test User's Workspace",
+        slug: 'test-user-1234567890',
       });
 
       const result = await service.register({
@@ -67,6 +81,16 @@ describe('AuthService', () => {
       expect(result.accessToken).toBe('signed-jwt-token');
       expect(result.user.email).toBe('test@example.com');
       expect(prisma.user.create).toHaveBeenCalled();
+      expect(prisma.workspace.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          name: "Test User's Workspace",
+          memberships: { create: { userId: 'user-1', role: 'OWNER' } },
+        }),
+      });
+      expect(prisma.refreshSession.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ userId: 'user-1' }),
+      });
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
       expect(jwtService.signAsync).toHaveBeenCalledWith({
         sub: 'user-1',
         email: 'test@example.com',

@@ -12,15 +12,15 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'bg-cyan-400 text-slate-950 hover:bg-cyan-300 shadow-lg shadow-cyan-400/10',
+    'bg-[var(--accent)] text-[var(--accent-foreground)] shadow-[var(--shadow-glow)] hover:bg-[var(--accent-hover)] active:bg-[var(--accent-active)]',
   secondary:
-    'border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800',
+    'border border-[var(--border)] bg-[var(--surface-raised)] text-[var(--foreground)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-hover)]',
   ghost:
-    'border border-transparent text-slate-400 hover:bg-slate-900 hover:text-slate-100',
+    'border border-transparent text-[var(--muted-foreground)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] active:bg-[var(--surface-hover)]',
   danger:
-    'border border-red-500/30 bg-red-500/10 text-red-200 hover:bg-red-500/20',
+    'border border-[var(--danger-border)] bg-[var(--danger-muted)] text-[var(--danger)] hover:bg-[var(--danger-border)] active:bg-[var(--danger-border)]',
   outline:
-    'border border-slate-700 text-slate-200 hover:border-slate-600 hover:bg-slate-900',
+    'border border-[var(--border)] text-[var(--foreground)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-hover)]',
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -46,7 +46,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled}
         className={cn(
-          'inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 disabled:cursor-not-allowed disabled:opacity-60',
+          'inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-150 ease-[var(--ease-out)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]/50 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100',
           variantClasses[variant],
           sizeClasses[size],
           fullWidth && 'w-full',
