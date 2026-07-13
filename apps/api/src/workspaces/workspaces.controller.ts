@@ -17,6 +17,7 @@ import {
   UpdateMemberRoleDto,
   UpdateWorkspaceDto,
 } from './dto/workspace.dto';
+import { DeleteWorkspaceDto } from './dto/delete-workspace.dto';
 import { WorkspacesService } from './workspaces.service';
 
 @UseGuards(JwtAuthGuard)
@@ -46,6 +47,15 @@ export class WorkspacesController {
     @Body() dto: UpdateWorkspaceDto,
   ) {
     return this.service.update(req.user.sub, id, dto);
+  }
+
+  @Delete(':id')
+  remove(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() dto: DeleteWorkspaceDto,
+  ) {
+    return this.service.remove(req.user.sub, id, dto);
   }
 
   @Post(':id/members')

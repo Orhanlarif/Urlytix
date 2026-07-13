@@ -1,6 +1,6 @@
+import type { AuthResponse, AuthSession, AuthUser } from '@/types/auth';
 import { apiRequest } from '@/lib/api';
 import { getToken, logout, saveToken } from '@/lib/auth';
-import type { AuthResponse, AuthUser } from '@/types/auth';
 
 export type UpdateProfileInput = {
   name?: string;
@@ -9,13 +9,34 @@ export type UpdateProfileInput = {
   locale?: string;
 };
 
+export type LoginResult =
+  | (AuthResponse & { requiresTwoFactor?: false })
+  | {
+      message: string;
+      requiresTwoFactor: true;
+      twoFactorToken: string;
+    };
+
 export const authService = {
-  async login(email: string, password: string) {
-    const response = await apiRequest<AuthResponse>('/auth/login', {
+  async login(email: string, password: string): Promise<LoginResult> {
+    const response = await apiRequest<LoginResult>('/auth/login', {
       method: 'POST',
       body: { email, password },
     });
-    saveToken(response.accessToken);
+    if (!response.requiresTwoFactor && response.accessToken) {
+      saveToken(response.accessToken);
+    }
+    return response;
+  },
+
+  async verifyTwoFactor(twoFactorToken: string, code: string) {
+    const response = await apiRequest<AuthResponse>('/auth/2fa/verify', {
+      method: 'POST',
+      body: { twoFactorToken, code },
+    });
+    if (response.accessToken) {
+      saveToken(response.accessToken);
+    }
     return response;
   },
 
@@ -24,7 +45,9 @@ export const authService = {
       method: 'POST',
       body: input,
     });
-    saveToken(response.accessToken);
+    if (response.accessToken) {
+      saveToken(response.accessToken);
+    }
     return response;
   },
 
@@ -34,6 +57,67 @@ export const authService = {
     apiRequest<AuthUser>('/auth/profile', {
       method: 'PATCH',
       body: input,
+      token: getToken(),
+    }),
+
+  forgotPassword: (email: string) =>
+    apiRequest<{ message: string }>('/auth/forgot-password', {
+      method: 'POST',
+      body: { email },
+    }),
+
+  resetPassword: (token: string, password: string) =>
+    apiRequest<{ message: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: { token, password },
+    }),
+
+  changePassword: (currentPassword: string, newPassword: string) =>
+    apiRequest<{ message: string }>('/auth/change-password', {
+      method: 'POST',
+      body: { currentPassword, newPassword },
+      token: getToken(),
+    }),
+
+  listSessions: () =>
+    apiRequest<AuthSession[]>('/auth/sessions', { token: getToken() }),
+
+  revokeSession: (id: string) =>
+    apiRequest<{ message: string; revokedCurrent?: boolean }>(
+      `/auth/sessions/${id}`,
+      {
+        method: 'DELETE',
+        token: getToken(),
+      },
+    ),
+
+  revokeOtherSessions: () =>
+    apiRequest<{ message: string; revokedCount: number }>('/auth/sessions', {
+      method: 'DELETE',
+      token: getToken(),
+    }),
+
+  setupTwoFactor: () =>
+    apiRequest<{
+      secret: string;
+      otpauthUrl: string;
+      qrCodeDataUrl: string;
+    }>('/auth/2fa/setup', {
+      method: 'POST',
+      token: getToken(),
+    }),
+
+  enableTwoFactor: (code: string) =>
+    apiRequest<{ message: string; backupCodes: string[] }>('/auth/2fa/enable', {
+      method: 'POST',
+      body: { code },
+      token: getToken(),
+    }),
+
+  disableTwoFactor: (password: string, code: string) =>
+    apiRequest<{ message: string }>('/auth/2fa/disable', {
+      method: 'POST',
+      body: { password, code },
       token: getToken(),
     }),
 

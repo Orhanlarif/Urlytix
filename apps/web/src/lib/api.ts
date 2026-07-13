@@ -31,6 +31,9 @@ const refreshExcludedPaths = new Set([
   '/auth/register',
   '/auth/refresh',
   '/auth/logout',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+  '/auth/2fa/verify',
 ]);
 
 export async function apiRequest<T>(

@@ -13,6 +13,9 @@ export class AppConfigService implements OnModuleInit {
         'SHORT_URL_BASE',
         'REDIS_URL',
         'CORS_ORIGINS',
+        'APP_WEB_URL',
+        'SMTP_HOST',
+        'SMTP_FROM',
       ] as const;
 
       for (const key of required) {
@@ -27,6 +30,8 @@ export class AppConfigService implements OnModuleInit {
       this.validateUrl('DATABASE_URL', ['postgres:', 'postgresql:']);
       this.validateUrl('SHORT_URL_BASE', ['https:']);
       this.validateUrl('REDIS_URL', ['redis:', 'rediss:']);
+      this.validateUrl('APP_WEB_URL', ['https:']);
+      this.validateSmtpPort();
 
       for (const origin of this.corsOrigins) {
         this.validateAbsoluteUrl('CORS_ORIGINS', origin, ['https:']);
@@ -143,8 +148,56 @@ export class AppConfigService implements OnModuleInit {
     );
   }
 
+  get appWebUrl(): string {
+    const base =
+      this.configService.get<string>('APP_WEB_URL') ?? 'http://localhost:3000';
+    return base.replace(/\/+$/, '');
+  }
+
+  get smtpHost(): string {
+    return this.getTrimmed('SMTP_HOST');
+  }
+
+  get smtpPort(): number {
+    return Number(this.getTrimmed('SMTP_PORT') || '587');
+  }
+
+  get smtpUser(): string {
+    return this.getTrimmed('SMTP_USER');
+  }
+
+  get smtpPass(): string {
+    return this.configService.get<string>('SMTP_PASS')?.trim() ?? '';
+  }
+
+  get smtpFrom(): string {
+    return this.getTrimmed('SMTP_FROM') || 'Urlytics <noreply@localhost>';
+  }
+
+  get smtpSecure(): boolean {
+    const raw = this.getTrimmed('SMTP_SECURE').toLowerCase();
+    if (raw === 'true') return true;
+    if (raw === 'false') return false;
+    return this.smtpPort === 465;
+  }
+
+  get smtpConfigured(): boolean {
+    return Boolean(this.smtpHost);
+  }
+
+  get totpEncryptionKey(): string {
+    return this.getTrimmed('TOTP_ENCRYPTION_KEY') || this.jwtSecret;
+  }
+
   private getTrimmed(key: string): string {
     return this.configService.get<string>(key)?.trim() ?? '';
+  }
+
+  private validateSmtpPort() {
+    const port = this.smtpPort;
+    if (!Number.isInteger(port) || port < 1 || port > 65_535) {
+      throw new Error('SMTP_PORT must be an integer between 1 and 65535.');
+    }
   }
 
   private validateProductionJwtSecret() {

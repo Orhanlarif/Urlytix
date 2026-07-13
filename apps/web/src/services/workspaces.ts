@@ -54,4 +54,13 @@ export const workspacesService = {
         method: 'DELETE',
       },
     ),
+  remove: (id: string, confirmSlug: string) =>
+    apiRequest<{ message: string; deletedWorkspaceId: string }>(
+      `/workspaces/${id}`,
+      {
+        ...auth(),
+        method: 'DELETE',
+        body: { confirmSlug },
+      },
+    ),
 };

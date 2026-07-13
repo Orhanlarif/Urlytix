@@ -28,6 +28,7 @@ export function useWorkspaceAccess() {
       membership?.role === 'OWNER' || membership?.role === 'ADMIN',
     isAccessLoading: query.isLoading,
     memberships: query.data as WorkspaceMembership[] | undefined,
+    role: membership?.role,
     queryKey,
   };
 }

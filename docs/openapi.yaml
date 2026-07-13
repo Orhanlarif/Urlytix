@@ -479,12 +479,73 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
-  /settings/password:
-    put:
-      tags: [Settings]
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      operationId: forgotPassword
+      summary: Request a password reset email
+      x-urlytics-status: implemented
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        "201":
+          description: Generic acknowledgement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /auth/reset-password:
+    post:
+      tags: [Auth]
+      operationId: resetPassword
+      summary: Reset password with emailed token
+      x-urlytics-status: implemented
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [token, password]
+              properties:
+                token:
+                  type: string
+                password:
+                  type: string
+                  minLength: 12
+                  maxLength: 128
+      responses:
+        "201":
+          description: Password reset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /auth/change-password:
+    post:
+      tags: [Auth]
       operationId: changePassword
       summary: Change password and revoke other sessions
-      x-urlytics-status: planned
+      x-urlytics-status: implemented
       requestBody:
         required: true
         content:
@@ -496,16 +557,201 @@ paths:
               properties:
                 currentPassword:
                   type: string
-                  minLength: 6
                 newPassword:
                   type: string
                   minLength: 12
                   maxLength: 128
       responses:
-        "204":
+        "201":
           description: Password changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/sessions:
+    get:
+      tags: [Auth]
+      operationId: listSessions
+      summary: List active refresh sessions
+      x-urlytics-status: implemented
+      responses:
+        "200":
+          description: Active sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuthSession"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    delete:
+      tags: [Auth]
+      operationId: revokeOtherSessions
+      summary: Revoke all sessions except the current one
+      x-urlytics-status: implemented
+      responses:
+        "200":
+          description: Other sessions revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/sessions/{sessionId}:
+    delete:
+      tags: [Auth]
+      operationId: revokeSession
+      summary: Revoke a single session
+      x-urlytics-status: implemented
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Session revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /auth/2fa/setup:
+    post:
+      tags: [Auth]
+      operationId: setupTwoFactor
+      summary: Begin TOTP setup
+      x-urlytics-status: implemented
+      responses:
+        "201":
+          description: Setup payload
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [secret, otpauthUrl, qrCodeDataUrl]
+                properties:
+                  secret:
+                    type: string
+                  otpauthUrl:
+                    type: string
+                  qrCodeDataUrl:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/2fa/enable:
+    post:
+      tags: [Auth]
+      operationId: enableTwoFactor
+      summary: Enable TOTP after verifying a code
+      x-urlytics-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [code]
+              properties:
+                code:
+                  type: string
+                  pattern: "^\\d{6}$"
+      responses:
+        "201":
+          description: Enabled with one-time backup codes
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [message, backupCodes]
+                properties:
+                  message:
+                    type: string
+                  backupCodes:
+                    type: array
+                    items:
+                      type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/2fa/disable:
+    post:
+      tags: [Auth]
+      operationId: disableTwoFactor
+      summary: Disable TOTP with password and code
+      x-urlytics-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [password, code]
+              properties:
+                password:
+                  type: string
+                code:
+                  type: string
+      responses:
+        "201":
+          description: Disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/2fa/verify:
+    post:
+      tags: [Auth]
+      operationId: verifyTwoFactor
+      summary: Complete login with TOTP or backup code
+      x-urlytics-status: implemented
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [twoFactorToken, code]
+              properties:
+                twoFactorToken:
+                  type: string
+                code:
+                  type: string
+      responses:
+        "201":
+          description: Authentication succeeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -624,11 +870,31 @@ paths:
     delete:
       tags: [Workspaces]
       operationId: deleteWorkspace
-      summary: Delete a workspace
-      x-urlytics-status: planned
+      summary: Delete a workspace owned by the current user
+      x-urlytics-status: implemented
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [confirmSlug]
+              properties:
+                confirmSlug:
+                  type: string
+                  minLength: 3
+                  maxLength: 50
+                  pattern: "^[a-z0-9-]+$"
       responses:
-        "204":
+        "200":
           description: Workspace deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "403":
           $ref: "#/components/responses/Forbidden"
         "404":
@@ -1402,14 +1668,37 @@ components:
     AuthResponse:
       type: object
       additionalProperties: false
-      required: [message, accessToken, user]
+      required: [message]
       properties:
         message:
           type: string
         accessToken:
           type: string
+        requiresTwoFactor:
+          type: boolean
+        twoFactorToken:
+          type: string
         user:
           $ref: "#/components/schemas/User"
+
+    AuthSession:
+      type: object
+      additionalProperties: false
+      required: [id, createdAt, expiresAt, current]
+      properties:
+        id:
+          type: string
+          format: uuid
+        userAgent:
+          type: [string, "null"]
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        current:
+          type: boolean
 
     TokenResponse:
       type: object
@@ -1432,6 +1721,12 @@ components:
         email:
           type: string
           format: email
+        timezone:
+          type: string
+        locale:
+          type: string
+        totpEnabled:
+          type: boolean
         createdAt:
           type: string
           format: date-time

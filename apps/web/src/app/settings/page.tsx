@@ -12,7 +12,6 @@ import {
   Clipboard,
   Globe2,
   KeyRound,
-  ShieldCheck,
   Trash2,
   UserPlus,
   Users,
@@ -22,6 +21,7 @@ import {
   useWorkspaceAccess,
   WorkspaceReadOnlyNotice,
 } from '@/app/settings/_components/workspace-access';
+import { SecuritySettings } from '@/app/settings/_components/security-settings';
 import { AppShell } from '@/components/layout/app-shell';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -71,6 +71,11 @@ export default function SettingsPage() {
               id: 'general',
               label: t.settings.generalTab,
               content: <GeneralSettings />,
+            },
+            {
+              id: 'security',
+              label: t.settings.securityTab,
+              content: <SecuritySettings />,
             },
             {
               id: 'workspace',
@@ -251,35 +256,6 @@ function GeneralSettings() {
             />
           </div>
         </Card>
-
-        <Card>
-          <div className="flex items-start gap-4">
-            <div className="rounded-[var(--radius-md)] bg-[var(--success-muted)] p-3 text-[var(--success)]">
-              <ShieldCheck className="h-6 w-6" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="font-semibold">{t.settings.security}</h2>
-              </div>
-              <p className="mt-1 text-sm text-[var(--foreground)]">
-                {interpolate(t.settings.signedInAs, {
-                  email: user?.email ?? '—',
-                })}
-              </p>
-              <p className="mt-2 text-sm text-[var(--muted-foreground)]">
-                {t.settings.securityDescription}
-              </p>
-              <div className="mt-4 flex items-start gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3">
-                <Badge variant="default" dot>
-                  {t.settings.securityPlannedBadge}
-                </Badge>
-                <p className="text-xs leading-5 text-[var(--muted-foreground)]">
-                  {t.settings.securityRoadmapNote}
-                </p>
-              </div>
-            </div>
-          </div>
-        </Card>
       </div>
     </div>
   );
@@ -307,11 +283,17 @@ const TIMEZONE_OPTIONS = [
 
 function WorkspaceSettings() {
   const { t } = useLanguage();
-  const { currentWorkspace, updateWorkspace } = useWorkspace();
+  const { currentWorkspace, updateWorkspace, deleteWorkspace, workspaces } =
+    useWorkspace();
   const { showToast } = useToast();
-  const { canManage, isAccessLoading } = useWorkspaceAccess();
+  const { confirm } = useConfirm();
+  const { canManage, isAccessLoading, role } = useWorkspaceAccess();
   const [name, setName] = useState(currentWorkspace?.name ?? '');
   const [saving, setSaving] = useState(false);
+  const [confirmSlug, setConfirmSlug] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const isOwner = role === 'OWNER';
+  const canDelete = isOwner && workspaces.length > 1;
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -326,31 +308,94 @@ function WorkspaceSettings() {
     }
   }
 
+  async function handleDelete(event: FormEvent) {
+    event.preventDefault();
+    if (!currentWorkspace) return;
+    const ok = await confirm({
+      title: t.settings.deleteWorkspaceTitle,
+      description: t.settings.deleteWorkspaceDescription,
+      confirmLabel: t.settings.deleteWorkspace,
+      variant: 'danger',
+    });
+    if (!ok) return;
+
+    setDeleting(true);
+    try {
+      await deleteWorkspace(confirmSlug.trim());
+      showToast(t.settings.workspaceDeleted);
+      setConfirmSlug('');
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : t.settings.workspaceDeleteFailed,
+        'error',
+      );
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
-    <Card className="max-w-3xl">
-      <CardHeader title={t.settings.workspaceTitle} description={t.settings.workspaceDescription} />
-      {!isAccessLoading && !canManage && (
-        <div className="mt-6">
-          <WorkspaceReadOnlyNotice />
-        </div>
+    <div className="space-y-6 max-w-3xl">
+      <Card>
+        <CardHeader title={t.settings.workspaceTitle} description={t.settings.workspaceDescription} />
+        {!isAccessLoading && !canManage && (
+          <div className="mt-6">
+            <WorkspaceReadOnlyNotice />
+          </div>
+        )}
+        <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
+          <Input
+            name="settings-workspace-name"
+            label={t.settings.workspaceName}
+            minLength={2}
+            maxLength={100}
+            required
+            disabled={!currentWorkspace || !canManage}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
+          <Input label={t.settings.workspaceSlug} value={currentWorkspace?.slug ?? ''} disabled />
+          <Button type="submit" disabled={!currentWorkspace || !canManage || saving || name.trim() === currentWorkspace.name}>
+            {saving ? t.common.saving : t.common.save}
+          </Button>
+        </form>
+      </Card>
+
+      {isOwner && (
+        <Card className="border-[var(--danger-border)]">
+          <CardHeader
+            title={t.settings.dangerZoneTitle}
+            description={t.settings.dangerZoneDescription}
+          />
+          <form className="mt-6 space-y-4" onSubmit={handleDelete}>
+            <p className="text-sm text-[var(--muted-foreground)]">
+              {canDelete
+                ? t.settings.deleteWorkspaceHint
+                : t.settings.deleteWorkspaceLastOwner}
+            </p>
+            <Input
+              label={t.settings.deleteWorkspaceConfirmSlug}
+              value={confirmSlug}
+              onChange={(event) => setConfirmSlug(event.target.value)}
+              placeholder={currentWorkspace?.slug}
+              disabled={!canDelete}
+              required={canDelete}
+            />
+            <Button
+              type="submit"
+              variant="danger"
+              disabled={
+                !canDelete ||
+                deleting ||
+                confirmSlug.trim() !== (currentWorkspace?.slug ?? '')
+              }
+            >
+              {deleting ? t.common.processing : t.settings.deleteWorkspace}
+            </Button>
+          </form>
+        </Card>
       )}
-      <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
-        <Input
-          name="settings-workspace-name"
-          label={t.settings.workspaceName}
-          minLength={2}
-          maxLength={100}
-          required
-          disabled={!currentWorkspace || !canManage}
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-        />
-        <Input label={t.settings.workspaceSlug} value={currentWorkspace?.slug ?? ''} disabled />
-        <Button type="submit" disabled={!currentWorkspace || !canManage || saving || name.trim() === currentWorkspace.name}>
-          {saving ? t.common.saving : t.common.save}
-        </Button>
-      </form>
-    </Card>
+    </div>
   );
 }
 

@@ -45,20 +45,50 @@ enum AuditAction {
 }
 
 model User {
-  id           String   @id @default(uuid())
-  name         String?
-  email        String   @unique
-  passwordHash String
-  timezone     String   @default("UTC")
-  locale       String   @default("en")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String    @id @default(uuid())
+  name          String?
+  email         String    @unique
+  passwordHash  String
+  timezone      String    @default("UTC")
+  locale        String    @default("en")
+  totpSecret    String?
+  totpEnabledAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  links           Link[]
-  refreshSessions RefreshSession[]
-  memberships     Membership[]
-  apiKeys         ApiKey[]
-  auditLogs       AuditLog[]
+  links               Link[]
+  refreshSessions     RefreshSession[]
+  memberships         Membership[]
+  apiKeys             ApiKey[]
+  auditLogs           AuditLog[]
+  passwordResetTokens PasswordResetToken[]
+  totpBackupCodes     TotpBackupCode[]
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model TotpBackupCode {
+  id        String    @id @default(uuid())
+  userId    String
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Link {

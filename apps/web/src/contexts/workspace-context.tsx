@@ -26,6 +26,7 @@ type WorkspaceContextValue = {
   selectWorkspace: (id: string) => void;
   createWorkspace: (input: { name: string; slug: string }) => Promise<Workspace>;
   updateWorkspace: (name: string) => Promise<Workspace>;
+  deleteWorkspace: (confirmSlug: string) => Promise<void>;
   refetch: () => Promise<unknown>;
 };
 
@@ -115,6 +116,28 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     [currentWorkspace, queryClient],
   );
 
+  const deleteWorkspace = useCallback(
+    async (confirmSlug: string) => {
+      if (!currentWorkspace) {
+        throw new Error('No workspace selected.');
+      }
+      const deletedId = currentWorkspace.id;
+      await workspacesService.remove(deletedId, confirmSlug);
+      queryClient.setQueryData<WorkspaceSummary[]>(['workspaces'], (current = []) =>
+        current.filter((workspace) => workspace.id !== deletedId),
+      );
+      void queryClient.cancelQueries({
+        queryKey: workspaceQueryKeys.workspace(deletedId),
+      });
+      queryClient.removeQueries({
+        queryKey: workspaceQueryKeys.workspace(deletedId),
+      });
+      localStorage.removeItem(STORAGE_KEY);
+      setSelectedId(null);
+    },
+    [currentWorkspace, queryClient],
+  );
+
   return (
     <WorkspaceContext.Provider
       value={{
@@ -125,6 +148,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         selectWorkspace,
         createWorkspace,
         updateWorkspace,
+        deleteWorkspace,
         refetch: query.refetch,
       }}
     >

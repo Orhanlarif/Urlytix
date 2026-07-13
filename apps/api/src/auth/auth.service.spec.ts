@@ -6,6 +6,8 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as bcrypt from 'bcryptjs';
+import { AppConfigService } from '../config/app-config.service';
+import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from './auth.service';
 
@@ -16,6 +18,8 @@ describe('AuthService', () => {
     user: {
       findUnique: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
+      findFirst: jest.fn(),
     },
     membership: {
       findFirst: jest.fn(),
@@ -27,14 +31,38 @@ describe('AuthService', () => {
     refreshSession: {
       create: jest.fn(),
       findUnique: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
       update: jest.fn(),
       updateMany: jest.fn(),
+    },
+    passwordResetToken: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+    },
+    totpBackupCode: {
+      findMany: jest.fn(),
+      createMany: jest.fn(),
+      deleteMany: jest.fn(),
+      update: jest.fn(),
     },
     $transaction: jest.fn(),
   };
 
   const jwtService = {
     signAsync: jest.fn().mockResolvedValue('signed-jwt-token'),
+    verifyAsync: jest.fn(),
+  };
+
+  const mailService = {
+    sendPasswordReset: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const appConfig = {
+    appWebUrl: 'http://localhost:3000',
+    totpEncryptionKey: 'test-encryption-key-at-least-32-chars',
   };
 
   beforeEach(async () => {
@@ -49,6 +77,8 @@ describe('AuthService', () => {
         AuthService,
         { provide: PrismaService, useValue: prisma },
         { provide: JwtService, useValue: jwtService },
+        { provide: MailService, useValue: mailService },
+        { provide: AppConfigService, useValue: appConfig },
       ],
     }).compile();
 
@@ -118,6 +148,10 @@ describe('AuthService', () => {
         name: 'Test User',
         email: 'test@example.com',
         passwordHash,
+        timezone: 'UTC',
+        locale: 'en',
+        totpEnabledAt: null,
+        totpSecret: null,
         createdAt: new Date(),
       });
 
@@ -126,8 +160,33 @@ describe('AuthService', () => {
         password: 'secret123',
       });
 
-      expect(result.accessToken).toBe('signed-jwt-token');
-      expect(result.user.email).toBe('test@example.com');
+      expect(result.requiresTwoFactor).toBe(false);
+      if (!result.requiresTwoFactor) {
+        expect(result.accessToken).toBe('signed-jwt-token');
+        expect(result.user.email).toBe('test@example.com');
+      }
+    });
+
+    it('returns two-factor challenge when TOTP is enabled', async () => {
+      const passwordHash = await bcrypt.hash('secret123', 10);
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        email: 'test@example.com',
+        passwordHash,
+        totpEnabledAt: new Date(),
+        totpSecret: 'encrypted',
+      });
+      jwtService.signAsync.mockResolvedValueOnce('two-factor-pending');
+
+      const result = await service.login({
+        email: 'test@example.com',
+        password: 'secret123',
+      });
+
+      expect(result.requiresTwoFactor).toBe(true);
+      if (result.requiresTwoFactor) {
+        expect(result.twoFactorToken).toBe('two-factor-pending');
+      }
     });
 
     it('throws when user is not found', async () => {
@@ -148,6 +207,8 @@ describe('AuthService', () => {
         id: 'user-1',
         email: 'test@example.com',
         passwordHash,
+        totpEnabledAt: null,
+        totpSecret: null,
       });
 
       await expect(
@@ -165,12 +226,16 @@ describe('AuthService', () => {
         id: 'user-1',
         name: 'Test User',
         email: 'test@example.com',
+        timezone: 'UTC',
+        locale: 'en',
+        totpEnabledAt: null,
         createdAt: new Date(),
       });
 
       const result = await service.getMe('user-1');
 
       expect(result.email).toBe('test@example.com');
+      expect(result.totpEnabled).toBe(false);
     });
 
     it('throws when user does not exist', async () => {
@@ -211,6 +276,36 @@ describe('AuthService', () => {
       await expect(service.refresh('revoked-token')).rejects.toThrow(
         UnauthorizedException,
       );
+    });
+  });
+
+  describe('forgotPassword', () => {
+    it('always returns a generic message and emails existing users', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        email: 'test@example.com',
+        name: 'Test',
+        locale: 'en',
+      });
+
+      const result = await service.forgotPassword({
+        email: 'test@example.com',
+      });
+
+      expect(result.message).toContain('şifre sıfırlama');
+      expect(mailService.sendPasswordReset).toHaveBeenCalled();
+      expect(prisma.passwordResetToken.create).toHaveBeenCalled();
+    });
+
+    it('does not reveal missing accounts', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      const result = await service.forgotPassword({
+        email: 'missing@example.com',
+      });
+
+      expect(result.message).toContain('şifre sıfırlama');
+      expect(mailService.sendPasswordReset).not.toHaveBeenCalled();
     });
   });
 });

@@ -59,6 +59,45 @@ export class WorkspacesService {
     });
   }
 
+  async remove(
+    userId: string,
+    workspaceId: string,
+    dto: { confirmSlug: string },
+  ) {
+    await this.assertRole(userId, workspaceId, ['OWNER']);
+
+    const workspace = await this.prisma.workspace.findUnique({
+      where: { id: workspaceId },
+    });
+    if (!workspace) {
+      throw new NotFoundException('Workspace bulunamadı.');
+    }
+    if (workspace.slug !== dto.confirmSlug) {
+      throw new BadRequestException(
+        'Onay için workspace slug değerini doğru girmeniz gerekir.',
+      );
+    }
+
+    const ownedCount = await this.prisma.membership.count({
+      where: { userId, role: 'OWNER' },
+    });
+    if (ownedCount <= 1) {
+      throw new BadRequestException(
+        'Son sahibi olduğunuz workspace silinemez. Önce başka bir workspace oluşturun.',
+      );
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.link.deleteMany({ where: { workspaceId } });
+      await tx.workspace.delete({ where: { id: workspaceId } });
+    });
+
+    return {
+      message: 'Workspace silindi.',
+      deletedWorkspaceId: workspaceId,
+    };
+  }
+
   async addMember(userId: string, workspaceId: string, dto: AddMemberDto) {
     await this.assertRole(userId, workspaceId, ['OWNER', 'ADMIN']);
     const user = await this.prisma.user.findUnique({

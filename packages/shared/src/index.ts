@@ -12,13 +12,24 @@ export interface UserSummary {
   email: string;
   timezone?: string;
   locale?: string;
+  totpEnabled?: boolean;
   createdAt: string;
 }
 
 export interface AuthResponse {
   message: string;
   accessToken?: string;
-  user: UserSummary;
+  requiresTwoFactor?: boolean;
+  twoFactorToken?: string;
+  user?: UserSummary;
+}
+
+export interface AuthSession {
+  id: string;
+  userAgent: string | null;
+  createdAt: string;
+  expiresAt: string;
+  current: boolean;
 }
 
 export interface LinkSummary {

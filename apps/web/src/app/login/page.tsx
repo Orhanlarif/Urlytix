@@ -72,9 +72,12 @@ function LoginForm() {
 
   const redirectTo = searchParams.get('redirect') ?? '/dashboard';
   const sessionExpired = searchParams.get('expired') === '1';
+  const passwordReset = searchParams.get('reset') === '1';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [twoFactorToken, setTwoFactorToken] = useState('');
+  const [twoFactorCode, setTwoFactorCode] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -84,7 +87,16 @@ function LoginForm() {
     setIsLoading(true);
 
     try {
-      await authService.login(email, password);
+      if (twoFactorToken) {
+        await authService.verifyTwoFactor(twoFactorToken, twoFactorCode.trim());
+      } else {
+        const result = await authService.login(email, password);
+        if (result.requiresTwoFactor) {
+          setTwoFactorToken(result.twoFactorToken);
+          setIsLoading(false);
+          return;
+        }
+      }
       router.push(redirectTo);
       router.refresh();
     } catch (err) {
@@ -113,8 +125,12 @@ function LoginForm() {
               <Logo href="/" size="sm" />
             </div>
 
-            <h1 className="text-heading-lg">{t.auth.loginTitle}</h1>
-            <p className="mt-2 text-sm text-[var(--muted-foreground)]">{t.auth.loginDesc}</p>
+            <h1 className="text-heading-lg">
+              {twoFactorToken ? t.auth.twoFactorTitle : t.auth.loginTitle}
+            </h1>
+            <p className="mt-2 text-sm text-[var(--muted-foreground)]">
+              {twoFactorToken ? t.auth.twoFactorDesc : t.auth.loginDesc}
+            </p>
 
             {sessionExpired && (
               <div className="mt-6 rounded-xl border border-[var(--warning-border)] bg-[var(--warning-muted)] px-4 py-3 text-sm text-[var(--warning)]">
@@ -122,26 +138,55 @@ function LoginForm() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-              <Input
-                label={t.auth.email}
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="ornek@email.com"
-                type="email"
-                required
-                autoComplete="email"
-              />
+            {passwordReset && !twoFactorToken && (
+              <div className="mt-6 rounded-xl border border-[var(--success-border)] bg-[var(--success-muted)] px-4 py-3 text-sm text-[var(--success)]">
+                {t.auth.resetSuccessBanner}
+              </div>
+            )}
 
-              <Input
-                label={t.auth.password}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="••••••••"
-                type="password"
-                required
-                autoComplete="current-password"
-              />
+            <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+              {!twoFactorToken ? (
+                <>
+                  <Input
+                    label={t.auth.email}
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="ornek@email.com"
+                    type="email"
+                    required
+                    autoComplete="email"
+                  />
+
+                  <Input
+                    label={t.auth.password}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="••••••••"
+                    type="password"
+                    required
+                    autoComplete="current-password"
+                  />
+
+                  <div className="flex justify-end">
+                    <Link
+                      href="/forgot-password"
+                      className="text-sm text-[var(--accent)] hover:underline"
+                    >
+                      {t.auth.forgotLink}
+                    </Link>
+                  </div>
+                </>
+              ) : (
+                <Input
+                  label={t.auth.twoFactorCode}
+                  value={twoFactorCode}
+                  onChange={(event) => setTwoFactorCode(event.target.value)}
+                  placeholder="123456"
+                  required
+                  autoComplete="one-time-code"
+                  hint={t.auth.twoFactorHint}
+                />
+              )}
 
               {error && (
                 <div className="rounded-xl border border-[var(--danger-border)] bg-[var(--danger-muted)] px-4 py-3 text-sm text-[var(--danger)]">
@@ -150,16 +195,37 @@ function LoginForm() {
               )}
 
               <Button type="submit" disabled={isLoading} fullWidth size="lg">
-                {isLoading ? t.auth.loginLoading : t.auth.loginButton}
+                {isLoading
+                  ? t.auth.loginLoading
+                  : twoFactorToken
+                    ? t.auth.twoFactorButton
+                    : t.auth.loginButton}
               </Button>
+
+              {twoFactorToken && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  fullWidth
+                  onClick={() => {
+                    setTwoFactorToken('');
+                    setTwoFactorCode('');
+                    setError('');
+                  }}
+                >
+                  {t.auth.twoFactorBack}
+                </Button>
+              )}
             </form>
 
-            <p className="mt-6 text-center text-sm text-[var(--muted-foreground)]">
-              {t.auth.noAccount}{' '}
-              <Link href="/register" className="text-[var(--accent)] hover:underline">
-                {t.auth.registerLink}
-              </Link>
-            </p>
+            {!twoFactorToken && (
+              <p className="mt-6 text-center text-sm text-[var(--muted-foreground)]">
+                {t.auth.noAccount}{' '}
+                <Link href="/register" className="text-[var(--accent)] hover:underline">
+                  {t.auth.registerLink}
+                </Link>
+              </p>
+            )}
           </Card>
         </div>
       </div>
