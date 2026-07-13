@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Bu doküman Urlytics'i production ortamına deploy etmek için adım adım rehberdir.
+Bu doküman Urlytix'i production ortamına deploy etmek için adım adım rehberdir.
 
 ## Mimari
 
@@ -27,13 +27,15 @@ DATABASE_URL="postgresql://..." pnpm --filter api deploy:database
 ```env
 NODE_ENV=production
 PORT=4000
-DATABASE_URL=postgresql://user:pass@host:5432/urlytics_db
+DATABASE_URL=postgresql://user:pass@host:5432/urlytix_db
 JWT_SECRET=<en-az-32-karakter-rastgele-secret>
 REDIS_URL=rediss://cache-host:6379
 CORS_ORIGINS=https://yourdomain.com
-SHORT_URL_BASE=https://api.yourdomain.com/api/r
+SHORT_URL_BASE=https://api.yourdomain.com
 BILLING_ENABLED=false
 ```
+
+Kısa linkler `https://api.yourdomain.com/abc1234` biçiminde üretilir (`/api/r` yolu public URL'de görünmez).
 
 ### Deploy adımları
 
@@ -64,7 +66,7 @@ Beklenen yanıt:
 ```json
 {
   "status": "ok",
-  "app": "Urlytics API",
+  "app": "Urlytix API",
   "database": "connected",
   "timestamp": "..."
 }
@@ -111,6 +113,9 @@ Deploy sonrası `SHORT_URL_BASE` ve `CORS_ORIGINS` değerlerini production domai
 - [ ] Kısa link redirect test edildi
 - [ ] Login / register / dashboard akışı test edildi
 - [ ] `pnpm release:staging:gate` kontrollü staging URL/secret'larıyla başarılı
+- [ ] `pnpm ops:restore-drill` veya staging restore çıktısı kaydedildi
+- [ ] `SENTRY_DSN` / `METRICS_TOKEN` (veya eşdeğer platform telemetry) ayarlandı
+- [ ] `docs/security-review.md` launch checklist gözden geçirildi
 
 ## 6. CI/CD
 
@@ -132,13 +137,16 @@ pnpm db:migrate:deploy
 pnpm run ci
 ```
 
-## 7. Monitoring (Opsiyonel)
+## 7. Monitoring
 
-Production'da önerilen eklemeler:
+Production telemetry hooks shipped in the API:
 
-- **Uptime monitoring** — `/api/health` endpoint'ini izle (UptimeRobot, Better Stack)
-- **Error tracking** — Sentry entegrasyonu
-- **Log aggregation** — Railway/Fly.io built-in logs veya Datadog
+- **Structured JSON logs** when `NODE_ENV=production` (ship stdout to your platform)
+- **Error tracking** — set `SENTRY_DSN` (and ideally `APP_VERSION`/`GIT_SHA`)
+- **Metrics** — scrape `GET /api/metrics` with `Authorization: Bearer $METRICS_TOKEN`
+- **Uptime** — probe `/api/health` every minute (UptimeRobot, Better Stack, etc.)
+
+See `docs/observability-slo.md` for SLOs and alert policy.
 
 ## 8. Backup
 

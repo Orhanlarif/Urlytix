@@ -1,7 +1,7 @@
 import type {
   ApiKeySummary,
   CreateApiKeyResponse,
-} from '@urlytics/shared';
+} from '@urlytix/shared';
 import { apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/auth';
 

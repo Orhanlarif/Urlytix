@@ -9,9 +9,13 @@ export function Select({
   ...props
 }: SelectHTMLAttributes<HTMLSelectElement> & { label?: string }) {
   return (
-    <label className="block">
-      {label && <span className="text-sm font-medium text-[var(--muted)]">{label}</span>}
-      <span className={cn('relative block', label && 'mt-2')}>
+    <label className="block min-w-0">
+      {label && (
+        <span className="mb-2 block text-sm font-medium text-[var(--muted)]">
+          {label}
+        </span>
+      )}
+      <span className="relative block">
         <select
           {...props}
           className={cn(

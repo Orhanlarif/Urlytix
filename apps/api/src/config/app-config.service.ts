@@ -6,6 +6,9 @@ export class AppConfigService implements OnModuleInit {
   constructor(private readonly configService: ConfigService) {}
 
   onModuleInit() {
+    // Validate cookie domain whenever set (including non-production).
+    void this.cookieDomain;
+
     if (this.isProduction) {
       const required = [
         'JWT_SECRET',
@@ -87,10 +90,10 @@ export class AppConfigService implements OnModuleInit {
 
   get shortUrlBase(): string {
     const base =
-      this.configService.get<string>('SHORT_URL_BASE') ??
-      'http://localhost:4000/api/r';
+      this.configService.get<string>('SHORT_URL_BASE') ?? 'http://localhost:4000';
 
-    return base.replace(/\/+$/, '');
+    // Strip legacy `/api/r` suffix so public links stay path-clean.
+    return base.replace(/\/+$/, '').replace(/\/api\/r$/i, '');
   }
 
   buildShortUrl(shortCode: string, hostname?: string | null): string {
@@ -100,11 +103,11 @@ export class AppConfigService implements OnModuleInit {
 
     try {
       const baseUrl = new URL(this.shortUrlBase);
-      const path = baseUrl.pathname.replace(/\/+$/, '') || '/api/r';
+      const path = baseUrl.pathname.replace(/\/+$/, '');
       const protocol = this.isProduction ? 'https:' : baseUrl.protocol;
       return `${protocol}//${hostname.toLowerCase()}${path}/${shortCode}`;
     } catch {
-      return `https://${hostname.toLowerCase()}/api/r/${shortCode}`;
+      return `https://${hostname.toLowerCase()}/${shortCode}`;
     }
   }
 
@@ -148,6 +151,60 @@ export class AppConfigService implements OnModuleInit {
     );
   }
 
+  /**
+   * Optional parent Domain for auth/visitor cookies when web and API share a
+   * registrable domain but use distinct hostnames (e.g. `.example.com`).
+   * Prefer host-only cookies via a reverse-proxied same host when possible.
+   */
+  get cookieDomain(): string | undefined {
+    const domain = this.getTrimmed('COOKIE_DOMAIN');
+    if (!domain) return undefined;
+
+    if (domain.includes('/') || domain.includes(':') || domain.includes(' ')) {
+      throw new Error(
+        'COOKIE_DOMAIN must be a bare hostname suffix such as .example.com.',
+      );
+    }
+
+    if (this.isProduction && !domain.startsWith('.')) {
+      throw new Error(
+        'COOKIE_DOMAIN must start with a leading dot in production (e.g. .example.com).',
+      );
+    }
+
+    return domain;
+  }
+
+  get cookieBaseOptions(): {
+    httpOnly: true;
+    secure: boolean;
+    sameSite: 'lax';
+    domain?: string;
+  } {
+    return {
+      httpOnly: true,
+      secure: this.isProduction,
+      sameSite: 'lax',
+      ...(this.cookieDomain ? { domain: this.cookieDomain } : {}),
+    };
+  }
+
+  get appVersion(): string {
+    return (
+      this.getTrimmed('APP_VERSION') || this.getTrimmed('GIT_SHA') || 'unknown'
+    );
+  }
+
+  get metricsToken(): string | undefined {
+    const token = this.getTrimmed('METRICS_TOKEN');
+    return token || undefined;
+  }
+
+  get sentryDsn(): string | undefined {
+    const dsn = this.getTrimmed('SENTRY_DSN');
+    return dsn || undefined;
+  }
+
   get appWebUrl(): string {
     const base =
       this.configService.get<string>('APP_WEB_URL') ?? 'http://localhost:3000';
@@ -168,11 +225,14 @@ export class AppConfigService implements OnModuleInit {
 
   get smtpPass(): string {
     // Google App Passwords are often pasted with spaces for readability.
-    return (this.configService.get<string>('SMTP_PASS') ?? '').replace(/\s+/g, '');
+    return (this.configService.get<string>('SMTP_PASS') ?? '').replace(
+      /\s+/g,
+      '',
+    );
   }
 
   get smtpFrom(): string {
-    return this.getTrimmed('SMTP_FROM') || 'Urlytics <noreply@localhost>';
+    return this.getTrimmed('SMTP_FROM') || 'Urlytix <noreply@localhost>';
   }
 
   get smtpSecure(): boolean {

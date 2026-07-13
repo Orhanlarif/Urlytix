@@ -13,7 +13,7 @@ export function buildPasswordResetEmail(input: {
     const greeting = input.userName
       ? `Merhaba ${input.userName},`
       : 'Merhaba,';
-    const subject = 'Urlytics şifre sıfırlama';
+    const subject = 'Urlytix şifre sıfırlama';
     const text = [
       greeting,
       '',
@@ -23,7 +23,7 @@ export function buildPasswordResetEmail(input: {
       '',
       'Bu talebi siz yapmadıysanız bu e-postayı yok sayabilirsiniz.',
       '',
-      '— Urlytics',
+      '— Urlytix',
     ].join('\n');
     const html = `
 <!DOCTYPE html>
@@ -33,7 +33,7 @@ export function buildPasswordResetEmail(input: {
       <tr>
         <td align="center">
           <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border-radius:12px;padding:32px;border:1px solid #e5e7eb;">
-            <tr><td style="font-size:20px;font-weight:700;padding-bottom:8px;">Urlytics</td></tr>
+            <tr><td style="font-size:20px;font-weight:700;padding-bottom:8px;">Urlytix</td></tr>
             <tr><td style="font-size:16px;line-height:1.5;padding-bottom:16px;">${greeting}</td></tr>
             <tr><td style="font-size:15px;line-height:1.6;padding-bottom:24px;">Hesabınız için bir şifre sıfırlama talebi aldık. Bağlantı ${input.expiresMinutes} dakika geçerlidir.</td></tr>
             <tr>
@@ -55,17 +55,17 @@ export function buildPasswordResetEmail(input: {
   }
 
   const greeting = input.userName ? `Hi ${input.userName},` : 'Hi,';
-  const subject = 'Reset your Urlytics password';
+  const subject = 'Reset your Urlytix password';
   const text = [
     greeting,
     '',
-    'We received a request to reset your Urlytics password.',
+    'We received a request to reset your Urlytix password.',
     `This link expires in ${input.expiresMinutes} minutes:`,
     input.resetUrl,
     '',
     'If you did not request this, you can ignore this email.',
     '',
-    '— Urlytics',
+    '— Urlytix',
   ].join('\n');
   const html = `
 <!DOCTYPE html>
@@ -75,9 +75,9 @@ export function buildPasswordResetEmail(input: {
       <tr>
         <td align="center">
           <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border-radius:12px;padding:32px;border:1px solid #e5e7eb;">
-            <tr><td style="font-size:20px;font-weight:700;padding-bottom:8px;">Urlytics</td></tr>
+            <tr><td style="font-size:20px;font-weight:700;padding-bottom:8px;">Urlytix</td></tr>
             <tr><td style="font-size:16px;line-height:1.5;padding-bottom:16px;">${greeting}</td></tr>
-            <tr><td style="font-size:15px;line-height:1.6;padding-bottom:24px;">We received a request to reset your Urlytics password. This link expires in ${input.expiresMinutes} minutes.</td></tr>
+            <tr><td style="font-size:15px;line-height:1.6;padding-bottom:24px;">We received a request to reset your Urlytix password. This link expires in ${input.expiresMinutes} minutes.</td></tr>
             <tr>
               <td style="padding-bottom:24px;">
                 <a href="${input.resetUrl}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600;">Reset password</a>

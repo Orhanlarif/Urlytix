@@ -11,8 +11,8 @@ export function getSafeRedirectPath(
   }
 
   try {
-    const url = new URL(value, 'http://urlytics.local');
-    if (url.origin !== 'http://urlytics.local') {
+    const url = new URL(value, 'http://urlytix.local');
+    if (url.origin !== 'http://urlytix.local') {
       return fallback;
     }
     return `${url.pathname}${url.search}${url.hash}` || fallback;

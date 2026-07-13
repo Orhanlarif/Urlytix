@@ -77,12 +77,12 @@ describe('WorkspaceProvider', () => {
   });
 
   it('falls back to the first workspace when stored selection is invalid', async () => {
-    localStorage.setItem('urlytics_workspace_id', 'missing');
+    localStorage.setItem('urlytix_workspace_id', 'missing');
     listMock.mockResolvedValue([workspace]);
     renderProvider();
 
     expect(await screen.findByText('Team')).toBeInTheDocument();
-    expect(localStorage.getItem('urlytics_workspace_id')).toBe('workspace-1');
+    expect(localStorage.getItem('urlytix_workspace_id')).toBe('workspace-1');
   });
 
   it('selects a newly created workspace', async () => {
@@ -98,7 +98,7 @@ describe('WorkspaceProvider', () => {
     fireEvent.click(screen.getByRole('button', { name: 'create' }));
 
     await waitFor(() => expect(screen.getByText('New')).toBeInTheDocument());
-    expect(localStorage.getItem('urlytics_workspace_id')).toBe('workspace-2');
+    expect(localStorage.getItem('urlytix_workspace_id')).toBe('workspace-2');
   });
 
   it('removes the previous workspace data when switching tenants', async () => {

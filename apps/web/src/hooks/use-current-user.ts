@@ -4,7 +4,13 @@ import { useQuery } from '@tanstack/react-query';
 import { usePathname } from 'next/navigation';
 import { authService } from '@/services/auth';
 
-const protectedPrefixes = ['/dashboard', '/links', '/analytics', '/settings'];
+const protectedPrefixes = [
+  '/dashboard',
+  '/links',
+  '/analytics',
+  '/workspace',
+  '/settings',
+];
 
 export const CURRENT_USER_QUERY_KEY = ['me'] as const;
 

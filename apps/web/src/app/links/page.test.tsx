@@ -66,6 +66,12 @@ describe('LinksPage integration', () => {
   beforeEach(() => {
     createMock.mockReset();
     showToastMock.mockReset();
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: vi.fn().mockResolvedValue(undefined),
+      },
+    });
   });
 
   it('creates a link in the active workspace and refreshes workspace data', async () => {
@@ -75,7 +81,7 @@ describe('LinksPage integration', () => {
         id: 'link-1',
         originalUrl: 'https://example.com/release',
         shortCode: 'release-smoke',
-        shortUrl: 'http://localhost:4000/api/r/release-smoke',
+        shortUrl: 'http://localhost:4000/release-smoke',
         title: 'Release link',
         status: 'ACTIVE',
         expiresAt: null,
@@ -119,8 +125,8 @@ describe('LinksPage integration', () => {
       queryKey: ['workspace-data', 'workspace-1'],
     });
     expect(
-      await screen.findByText('http://localhost:4000/api/r/release-smoke'),
+      await screen.findByText('http://localhost:4000/release-smoke'),
     ).toBeInTheDocument();
-    expect(showToastMock).toHaveBeenCalledWith('Link created successfully.');
+    expect(showToastMock).toHaveBeenCalledWith(en.links.linkCopied);
   });
 });

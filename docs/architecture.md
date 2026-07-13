@@ -2,7 +2,7 @@
 
 Status: target architecture, reviewed 2026-07-11. Current-versus-planned product scope
 is tracked in `ROADMAP.md`; the API contract marks planned operations with
-`x-urlytics-status`.
+`x-urlytix-status`.
 
 ## System context
 
@@ -79,7 +79,8 @@ rollback instructions.
 
 Current flow:
 
-1. Client requests `/api/r/{shortCode}`.
+1. Client requests `/{shortCode}` (pretty public URL). Legacy `/api/r/{shortCode}`
+   remains supported.
 2. API rate-limits, loads the link, checks status/expiry, records click metadata, and
    sets an opaque visitor cookie when needed.
 3. API returns an HTTP redirect or a safe error page.
@@ -122,6 +123,25 @@ retries, and delivery logs with redacted payloads.
 - Backups are encrypted, access-controlled, retention-limited, and restore-tested.
 - Dependency/image scanning and least-privilege, non-root containers are release gates.
 
+### Auth cookies and split web/API hosts
+
+Browser sessions use httpOnly `access_token` (15 minutes) and rotating
+`refresh_token` (30 days) cookies set by the API (`apps/api/src/auth/auth.controller.ts`).
+Defaults today: `httpOnly`, `sameSite=lax`, `secure` in production, and optional
+`COOKIE_DOMAIN` when explicitly configured for split hosts.
+
+| Deployment shape | What works |
+| --- | --- |
+| Same registrable host via reverse proxy (e.g. `app.example.com` → web, `app.example.com/api` → API) | Host-only cookies work. Prefer this for production. |
+| Localhost with different ports (`:3000` web, `:4000` API) | Browsers treat localhost as one site across ports; cookies work in development. |
+| Distinct web and API hostnames (`app.example.com` + `api.example.com`) | Host-only cookies set by the API **are not sent** to the web origin. Next.js proxy auth gates that read `access_token` on the web host will redirect to login in a loop. |
+
+**Production recommendation:** terminate TLS at one public host and path-route `/api` to
+the Nest service so cookies stay host-only. If you must use separate API and web
+hostnames, set `COOKIE_DOMAIN` to the shared parent (e.g. `.example.com`) with HTTPS,
+CSRF-aware `SameSite`/`Secure` settings, and a matching CORS allowlist — do not enable a
+parent domain on localhost.
+
 ## Availability and change safety
 
 The API exposes liveness/readiness semantics through `/api/health`; orchestration must
@@ -160,7 +180,7 @@ exist. **Consequence:** current infrastructure deliberately builds API and web o
 
 **Decision:** `docs/openapi.yaml` is the dependency-free source contract for current
 and planned REST endpoints. Implemented operations are distinguished from planned
-ones with `x-urlytics-status`; CI must keep the YAML parseable.
+ones with `x-urlytix-status`; CI must keep the YAML parseable.
 
 ### ADR-006 — Backward-compatible database delivery
 

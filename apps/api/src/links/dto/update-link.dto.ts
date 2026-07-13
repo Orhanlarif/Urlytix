@@ -3,6 +3,7 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  Matches,
   MaxLength,
   MinLength,
   ValidateIf,
@@ -24,6 +25,18 @@ export class UpdateLinkDto {
   @IsString()
   @MaxLength(80)
   title?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(32)
+  @Matches(/^[a-zA-Z0-9_-]+$/, {
+    message: 'Kısa link sadece harf, sayı, tire ve alt çizgi içerebilir.',
+  })
+  @Matches(/^(?!(?:api|docs|health|metrics|r)$)/i, {
+    message: 'Bu kısa link sistem tarafından rezerve edilmiştir.',
+  })
+  customAlias?: string;
 
   @IsOptional()
   @ValidateIf((_, value) => value !== null)

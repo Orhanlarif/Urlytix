@@ -118,9 +118,7 @@ export class LinksController {
         res.cookie(
           result.passwordCookieName,
           result.passwordUnlockToken,
-          this.linksService.getPasswordCookieOptions(
-            this.appConfig.isProduction,
-          ),
+          this.linksService.getPasswordCookieOptions(),
         );
       }
       return res.redirect(result.originalUrl);
@@ -137,7 +135,7 @@ export class LinksController {
       res.cookie(
         this.linksService.getVisitorCookieName(),
         result.visitorId,
-        this.linksService.getVisitorCookieOptions(this.appConfig.isProduction),
+        this.linksService.getVisitorCookieOptions(),
       );
     }
   }

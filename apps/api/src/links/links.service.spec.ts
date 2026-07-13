@@ -37,13 +37,18 @@ describe('LinksService', () => {
   const appConfig = {
     buildShortUrl: jest.fn((code: string, hostname?: string | null) =>
       hostname
-        ? `https://${hostname}/api/r/${code}`
-        : `http://localhost:4000/api/r/${code}`,
+        ? `https://${hostname}/${code}`
+        : `http://localhost:4000/${code}`,
     ),
     isPlatformHostname: jest.fn((hostname: string) =>
       ['localhost', '127.0.0.1'].includes(hostname),
     ),
     jwtSecret: 'test-secret',
+    cookieBaseOptions: {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax' as const,
+    },
   };
 
   const clickIngestion = {
@@ -81,8 +86,8 @@ describe('LinksService', () => {
     appConfig.buildShortUrl.mockImplementation(
       (code: string, hostname?: string | null) =>
         hostname
-          ? `https://${hostname}/api/r/${code}`
-          : `http://localhost:4000/api/r/${code}`,
+          ? `https://${hostname}/${code}`
+          : `http://localhost:4000/${code}`,
     );
 
     const module: TestingModule = await Test.createTestingModule({
@@ -122,7 +127,7 @@ describe('LinksService', () => {
         'workspace-1',
         ['OWNER', 'ADMIN', 'MEMBER'],
       );
-      expect(result.link.shortUrl).toBe('http://localhost:4000/api/r/abc1234');
+      expect(result.link.shortUrl).toBe('http://localhost:4000/abc1234');
       expect(result.message).toBe('Link oluşturuldu.');
       expect(prisma.link.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -289,7 +294,7 @@ describe('LinksService', () => {
 
       const result = await service.handleRedirect('active-code', {
         ...mockRequest,
-        cookies: { urlytics_vid: 'visitor-123' },
+        cookies: { urlytix_vid: 'visitor-123' },
       } as unknown as Request);
 
       expect(result.originalUrl).toBe('https://example.com');
@@ -401,7 +406,66 @@ describe('LinksService', () => {
 
       expect(result.originalUrl).toBe('https://example.com');
       expect(result.passwordUnlockToken).toBeTruthy();
-      expect(result.passwordCookieName).toBe('urlytics_lp_link-1');
+      expect(result.passwordCookieName).toBe('urlytix_lp_link-1');
+    });
+  });
+
+  describe('updateLink', () => {
+    it('updates shortCode when a free custom alias is provided', async () => {
+      prisma.link.findUnique
+        .mockResolvedValueOnce({
+          id: 'link-1',
+          userId: 'user-1',
+          workspaceId: 'workspace-1',
+          shortCode: 'abc1234',
+          status: 'ACTIVE',
+          expiresAt: null,
+        })
+        .mockResolvedValueOnce(null);
+      prisma.link.update.mockResolvedValue({
+        id: 'link-1',
+        originalUrl: 'https://example.com',
+        shortCode: 'my-campaign',
+        title: 'Example',
+        status: 'ACTIVE',
+        expiresAt: null,
+        createdAt: new Date(),
+        passwordHash: null,
+        workspaceId: 'workspace-1',
+        _count: { clickEvents: 3 },
+      });
+
+      const result = await service.updateLink('user-1', 'link-1', {
+        customAlias: 'my-campaign',
+      });
+
+      expect(prisma.link.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ shortCode: 'my-campaign' }),
+        }),
+      );
+      expect(result.link.shortCode).toBe('my-campaign');
+      expect(result.link.shortUrl).toBe('http://localhost:4000/my-campaign');
+    });
+
+    it('rejects custom alias that is already taken', async () => {
+      prisma.link.findUnique
+        .mockResolvedValueOnce({
+          id: 'link-1',
+          userId: 'user-1',
+          workspaceId: 'workspace-1',
+          shortCode: 'abc1234',
+          status: 'ACTIVE',
+          expiresAt: null,
+        })
+        .mockResolvedValueOnce({ id: 'other-link' });
+
+      await expect(
+        service.updateLink('user-1', 'link-1', {
+          customAlias: 'taken-alias',
+        }),
+      ).rejects.toThrow(ConflictException);
+      expect(prisma.link.update).not.toHaveBeenCalled();
     });
   });
 

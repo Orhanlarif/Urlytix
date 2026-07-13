@@ -1,6 +1,6 @@
 'use client';
 
-import type { WorkspaceRole } from '@urlytics/shared';
+import type { WorkspaceRole } from '@urlytix/shared';
 import { useQuery } from '@tanstack/react-query';
 import { FormEvent, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Check, ChevronDown, Plus } from 'lucide-react';
@@ -347,7 +347,7 @@ export function WorkspaceSwitcher({ compact = false }: { compact?: boolean }) {
               setSlug(event.target.value.toLowerCase());
             }}
           />
-          <div className="flex justify-end gap-3">
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             {hasWorkspaces && (
               <Button type="button" variant="secondary" onClick={closeCreate}>
                 {t.common.cancel}

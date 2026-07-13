@@ -12,6 +12,7 @@ export type JourneyStep = {
   actionLabel: string;
   complete: boolean;
   icon: LucideIcon;
+  openInNewTab?: boolean;
 };
 
 export function OnboardingJourney({
@@ -37,7 +38,12 @@ export function OnboardingJourney({
         description={description}
         action={
           nextStep && (
-            <Link href={nextStep.href}>
+            <Link
+              href={nextStep.href}
+              {...(nextStep.openInNewTab
+                ? { target: '_blank', rel: 'noreferrer' }
+                : {})}
+            >
               <Button size="sm">{nextStep.actionLabel}</Button>
             </Link>
           )
@@ -64,7 +70,7 @@ export function OnboardingJourney({
         </div>
       </div>
 
-      <ol className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <ol className="mt-6 grid gap-3 md:grid-cols-3">
         {steps.map((step) => {
           const Icon = step.icon;
           const cardClassName = cn(
@@ -102,7 +108,13 @@ export function OnboardingJourney({
               {step.complete ? (
                 <div className={cardClassName}>{content}</div>
               ) : (
-                <Link href={step.href} className={cardClassName}>
+                <Link
+                  href={step.href}
+                  className={cardClassName}
+                  {...(step.openInNewTab
+                    ? { target: '_blank', rel: 'noreferrer' }
+                    : {})}
+                >
                   {content}
                 </Link>
               )}

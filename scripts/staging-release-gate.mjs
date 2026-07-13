@@ -4,8 +4,8 @@ import { randomBytes } from 'node:crypto';
 const smokeOnly = process.argv.includes('--smoke-only');
 const apiBase = requiredUrl('STAGING_API_URL').replace(/\/+$/, '');
 
-if (process.env.STAGING_CONFIRM !== 'urlytics-staging') {
-  fail('Set STAGING_CONFIRM=urlytics-staging to confirm the target environment.');
+if (process.env.STAGING_CONFIRM !== 'urlytix-staging') {
+  fail('Set STAGING_CONFIRM=urlytix-staging to confirm the target environment.');
 }
 if (
   new URL(apiBase).protocol !== 'https:' &&
@@ -22,11 +22,11 @@ if (!smokeOnly) {
 }
 
 const suffix = `${Date.now()}-${randomBytes(3).toString('hex')}`;
-const email = process.env.STAGING_SMOKE_EMAIL ?? `release-${suffix}@urlytics.test`;
+const email = process.env.STAGING_SMOKE_EMAIL ?? `release-${suffix}@urlytix.test`;
 const password = process.env.STAGING_SMOKE_PASSWORD ?? `Release-${suffix}-Aa1!`;
 const destination =
   process.env.STAGING_SMOKE_DESTINATION ??
-  'https://example.com/urlytics-release-smoke';
+  'https://example.com/urlytix-release-smoke';
 let accessToken;
 let linkId;
 

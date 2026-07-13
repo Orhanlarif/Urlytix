@@ -59,7 +59,7 @@ export function Logo({
       </div>
 
       <div>
-        <p className={cn('font-bold tracking-tight', textSize)}>Urlytics</p>
+        <p className={cn('font-bold tracking-tight', textSize)}>Urlytix</p>
         {showTagline && (
           <p className="text-xs text-[var(--muted-foreground)]">{t.nav.tagline}</p>
         )}

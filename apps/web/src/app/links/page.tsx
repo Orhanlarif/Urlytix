@@ -15,7 +15,7 @@ import {
   TrendingUp,
   Zap,
 } from 'lucide-react';
-import type { PaginationMeta } from '@urlytics/shared';
+import type { PaginationMeta } from '@urlytix/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { AppShell } from '@/components/layout/app-shell';
 import { Badge } from '@/components/ui/badge';
@@ -28,10 +28,10 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorBanner } from '@/components/ui/error-banner';
 import { Input } from '@/components/ui/input';
 import { MetricCard } from '@/components/ui/metric-card';
-import { Modal } from '@/components/ui/modal';
 import { PageHeader } from '@/components/ui/page-header';
 import { PageLoading } from '@/components/ui/page-loading';
-import { Select } from '@/components/ui/select';
+import { QrCustomizeModal } from '@/components/qr/qr-customize-modal';
+import { MenuSelect } from '@/components/ui/menu-select';
 import { useToast } from '@/components/ui/toast';
 import { useWorkspace } from '@/contexts/workspace-context';
 import {
@@ -48,7 +48,6 @@ import {
   getLinkStatusLabel,
   isLinkOperational,
 } from '@/lib/link-status';
-import { createQrCodeDataUrl } from '@/lib/qr';
 import { cn } from '@/lib/utils';
 import { linksService } from '@/services/links';
 import type { LinkItem, LinkStatus } from '@/types/links';
@@ -79,8 +78,6 @@ export default function LinksPage() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [createdLink, setCreatedLink] = useState<LinkItem | null>(null);
   const [qrModalLink, setQrModalLink] = useState<LinkItem | null>(null);
-  const [qrDataUrl, setQrDataUrl] = useState('');
-  const [isQrLoading, setIsQrLoading] = useState(false);
   const [error, setError] = useState('');
   const [copiedShortCode, setCopiedShortCode] = useState<string | null>(null);
   const [mutatingLinkId, setMutatingLinkId] = useState<string | null>(null);
@@ -121,6 +118,16 @@ export default function LinksPage() {
   }, [searchInput]);
 
   useEffect(() => {
+    if (window.location.hash !== '#create-link') return;
+    window.requestAnimationFrame(() => {
+      document
+        .getElementById('create-link')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.getElementById('create-link-url')?.focus();
+    });
+  }, []);
+
+  useEffect(() => {
     setPage(1);
   }, [debouncedSearch, statusFilter, currentWorkspace?.id]);
 
@@ -141,7 +148,6 @@ export default function LinksPage() {
       });
 
       setCreatedLink(response.link);
-      showToast(t.links.created);
       setOriginalUrl('');
       setTitle('');
       setCustomAlias('');
@@ -152,6 +158,14 @@ export default function LinksPage() {
       setDebouncedSearch('');
       setStatusFilter('ALL');
       setPage(1);
+      try {
+        await navigator.clipboard.writeText(response.link.shortUrl);
+        setCopiedShortCode(response.link.shortCode);
+        window.setTimeout(() => setCopiedShortCode(null), 2000);
+        showToast(t.links.linkCopied);
+      } catch {
+        showToast(t.links.created);
+      }
       await refreshWorkspaceData();
     } catch (err) {
       setError(err instanceof Error ? err.message : t.links.createFailed);
@@ -232,59 +246,40 @@ export default function LinksPage() {
       await navigator.clipboard.writeText(link.shortUrl);
       setCopiedShortCode(link.shortCode);
       window.setTimeout(() => setCopiedShortCode(null), 1500);
+      showToast(t.common.copied);
     } catch {
       setError(t.links.copyFailed);
     }
   }
 
-  async function handleOpenQr(link: LinkItem) {
+  function handleOpenQr(link: LinkItem) {
     setError('');
     setQrModalLink(link);
-    setQrDataUrl('');
-    setIsQrLoading(true);
-
-    try {
-      const dataUrl = await createQrCodeDataUrl(link.shortUrl);
-      setQrDataUrl(dataUrl);
-    } catch {
-      setError(t.links.qrFailed);
-      setQrModalLink(null);
-    } finally {
-      setIsQrLoading(false);
-    }
   }
 
   function handleCloseQr() {
     setQrModalLink(null);
-    setQrDataUrl('');
-    setIsQrLoading(false);
-  }
-
-  function handleDownloadQr() {
-    if (!qrDataUrl || !qrModalLink) return;
-
-    const anchor = document.createElement('a');
-    anchor.href = qrDataUrl;
-    anchor.download = `${qrModalLink.shortCode}-qr.png`;
-    anchor.click();
   }
 
   function renderLinkActions(link: LinkItem, isMutating: boolean) {
     const isActive = isLinkOperational(link.status);
     const isExpired = link.status === 'EXPIRED';
     const canToggle = canToggleLinkStatus(link.status);
+    const copied = copiedShortCode === link.shortCode;
 
     return (
-      <div className="flex items-center justify-end gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => void handleCopy(link)}
+        >
+          {copied ? t.common.copied : t.common.copy}
+        </Button>
         <Link href={`/links/${link.id}`}>
           <Button size="sm">{t.common.manage}</Button>
         </Link>
         <DropdownMenu label={t.common.actions}>
-          <DropdownItem onClick={() => handleCopy(link)}>
-            {copiedShortCode === link.shortCode
-              ? t.common.copied
-              : t.common.copy}
-          </DropdownItem>
           <DropdownItem onClick={() => handleOpenQr(link)}>QR</DropdownItem>
           {isActive && (
             <DropdownItem
@@ -296,7 +291,9 @@ export default function LinksPage() {
             </DropdownItem>
           )}
           {isExpired && (
-            <DropdownItem onClick={() => router.push(`/links/${link.id}?tab=settings`)}>
+            <DropdownItem
+              onClick={() => router.push(`/links/${link.id}?tab=settings`)}
+            >
               {t.common.extendExpiry}
             </DropdownItem>
           )}
@@ -331,7 +328,7 @@ export default function LinksPage() {
             <Badge variant="warning">{t.links.passwordProtected}</Badge>
           )}
         </div>
-        <div className="mt-1.5 flex items-center gap-1.5">
+        <div className="mt-1.5 flex min-w-0 items-center gap-1.5">
           <span className="min-w-0 truncate text-sm text-[var(--accent)]">
             {link.shortUrl}
           </span>
@@ -339,9 +336,9 @@ export default function LinksPage() {
             type="button"
             onClick={() => handleCopy(link)}
             aria-label={t.common.copy}
-            className="shrink-0 rounded-md p-1 text-[var(--muted-foreground)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-[var(--muted-foreground)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
           >
-            <Copy className="h-3.5 w-3.5" />
+            <Copy className="h-4 w-4" />
           </button>
         </div>
         <p className="mt-1 truncate text-xs text-[var(--muted-foreground)]">
@@ -435,12 +432,18 @@ export default function LinksPage() {
             <div className="flex flex-wrap gap-2">
               <Button
                 size="sm"
-                variant="outline"
                 onClick={() => void handleCopy(createdLink)}
               >
                 {copiedShortCode === createdLink.shortCode
                   ? t.common.copied
                   : t.common.copyLink}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleOpenQr(createdLink)}
+              >
+                QR
               </Button>
               <a href={createdLink.shortUrl} target="_blank" rel="noreferrer">
                 <Button size="sm" variant="outline">
@@ -448,7 +451,9 @@ export default function LinksPage() {
                 </Button>
               </a>
               <Link href={`/links/${createdLink.id}`}>
-                <Button size="sm">{t.common.manage}</Button>
+                <Button size="sm" variant="outline">
+                  {t.common.manage}
+                </Button>
               </Link>
             </div>
           </div>
@@ -456,7 +461,7 @@ export default function LinksPage() {
       )}
 
       {/* Quick create hero */}
-      <Card className="mt-6">
+      <Card id="create-link" className="mt-6 scroll-mt-24">
         <div className="flex items-center gap-3">
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[var(--accent-border)] bg-[var(--accent-soft)]">
             <Zap className="h-5 w-5 text-[var(--accent)]" />
@@ -473,6 +478,7 @@ export default function LinksPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="flex-1">
               <Input
+                id="create-link-url"
                 label={t.links.targetUrl}
                 value={originalUrl}
                 onChange={(event) => setOriginalUrl(event.target.value)}
@@ -531,7 +537,7 @@ export default function LinksPage() {
               </label>
               <div className="mt-2 flex overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] focus-within:border-[var(--accent)]">
                 <span className="border-r border-[var(--border)] px-4 py-3 text-sm text-[var(--muted-foreground)]">
-                  /r/
+                  /
                 </span>
                 <input
                   value={customAlias}
@@ -595,8 +601,8 @@ export default function LinksPage() {
           <Filter className="h-4 w-4" />
           {t.links.filtersLabel}
         </div>
-        <div className="grid flex-1 gap-3 sm:grid-cols-[1fr_180px]">
-          <div className="relative">
+        <div className="grid flex-1 grid-cols-1 items-center gap-3 sm:grid-cols-[minmax(0,1fr)_13.5rem]">
+          <div className="relative min-w-0">
             <Search
               aria-hidden="true"
               className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted-foreground)]"
@@ -609,18 +615,39 @@ export default function LinksPage() {
               className="pl-10"
             />
           </div>
-          <Select
+          <MenuSelect
             aria-label={t.common.status}
             value={statusFilter}
-            onChange={(event) => {
-              setStatusFilter(event.target.value as 'ALL' | LinkStatus);
-            }}
-          >
-            <option value="ALL">{t.common.allStatuses}</option>
-            <option value="ACTIVE">{t.status.active}</option>
-            <option value="DISABLED">{t.status.disabled}</option>
-            <option value="EXPIRED">{t.status.expired}</option>
-          </Select>
+            onChange={setStatusFilter}
+            align="right"
+            className="w-full"
+            options={[
+              {
+                value: 'ALL',
+                label: t.common.allStatuses,
+                description: t.status.allDescription,
+                tone: 'accent',
+              },
+              {
+                value: 'ACTIVE',
+                label: t.status.active,
+                description: t.status.activeDescription,
+                tone: 'success',
+              },
+              {
+                value: 'DISABLED',
+                label: t.status.disabled,
+                description: t.status.disabledDescription,
+                tone: 'warning',
+              },
+              {
+                value: 'EXPIRED',
+                label: t.status.expired,
+                description: t.status.expiredDescription,
+                tone: 'danger',
+              },
+            ]}
+          />
         </div>
       </div>
 
@@ -636,6 +663,20 @@ export default function LinksPage() {
               title={hasFilters ? t.common.noResults : t.links.noLinks}
               description={
                 hasFilters ? t.common.adjustFilters : t.links.noLinksDesc
+              }
+              action={
+                !hasFilters ? (
+                  <Button
+                    onClick={() => {
+                      document
+                        .getElementById('create-link-url')
+                        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      document.getElementById('create-link-url')?.focus();
+                    }}
+                  >
+                    {t.links.createFirstCta}
+                  </Button>
+                ) : undefined
               }
             />
           ) : (
@@ -744,60 +785,18 @@ export default function LinksPage() {
         )}
       </Card>
 
-      <Modal
-        open={Boolean(qrModalLink)}
-        onClose={handleCloseQr}
-        title={t.links.qrTitle}
-        description={qrModalLink?.title ?? qrModalLink?.shortCode}
-        closeLabel={t.common.close}
-      >
-        {qrModalLink && (
-          <>
-            <div className="rounded-2xl border border-[var(--border)] bg-white p-4">
-              {isQrLoading ? (
-                <div
-                  role="status"
-                  className="flex h-72 items-center justify-center text-sm text-[var(--muted-foreground)]"
-                >
-                  {t.links.qrGenerating}
-                </div>
-              ) : (
-                qrDataUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={qrDataUrl}
-                    alt={interpolate(t.links.qrImageAlt, {
-                      code: qrModalLink.shortCode,
-                    })}
-                    className="h-full w-full rounded-xl"
-                  />
-                )
-              )}
-            </div>
-
-            <p className="mt-4 break-all rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--accent)]">
-              {qrModalLink.shortUrl}
-            </p>
-
-            <div className="mt-5 flex gap-3">
-              <Button
-                onClick={handleDownloadQr}
-                disabled={!qrDataUrl || isQrLoading}
-                fullWidth
-              >
-                {t.common.downloadPng}
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => handleCopy(qrModalLink)}
-                fullWidth
-              >
-                {t.common.copyLink}
-              </Button>
-            </div>
-          </>
-        )}
-      </Modal>
+      {qrModalLink && (
+        <QrCustomizeModal
+          open={Boolean(qrModalLink)}
+          onClose={handleCloseQr}
+          shortUrl={qrModalLink.shortUrl}
+          shortCode={qrModalLink.shortCode}
+          title={t.links.qrTitle}
+          description={qrModalLink.title ?? qrModalLink.shortCode}
+          onCopyLink={() => void handleCopy(qrModalLink)}
+          onError={setError}
+        />
+      )}
     </AppShell>
   );
 }

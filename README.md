@@ -1,6 +1,6 @@
-# Urlytics SaaS
+# Urlytix SaaS
 
-Urlytics, kullanıcıların kısa link oluşturup bu linkler üzerinden detaylı analytics (tıklama, cihaz, lokasyon vb.) almasını sağlayan modern bir SaaS uygulamasıdır.
+Urlytix, kullanıcıların kısa link oluşturup bu linkler üzerinden detaylı analytics (tıklama, cihaz, lokasyon vb.) almasını sağlayan modern bir SaaS uygulamasıdır.
 
 ## Tech Stack
 
@@ -26,7 +26,7 @@ Urlytics, kullanıcıların kısa link oluşturup bu linkler üzerinden detaylı
 
 ```bash
 git clone <repo-url>
-cd urlytics-saas
+cd urlytix-saas
 ```
 
 ### 2. Install dependencies
@@ -60,7 +60,7 @@ cp apps/web/.env.example apps/web/.env.local
 | `DATABASE_URL` | API | PostgreSQL connection string |
 | `JWT_SECRET` | API | Secret for signing JWT tokens |
 | `CORS_ORIGINS` | API | Comma-separated frontend URLs |
-| `SHORT_URL_BASE` | API | Public base URL for short links |
+| `SHORT_URL_BASE` | API | Public origin for short links (`https://host` → `https://host/abc1234`) |
 | `NEXT_PUBLIC_API_URL` | Web | API base URL (e.g. `http://localhost:4000/api`) |
 
 ### 5. Run migrations and workspace backfill
@@ -100,7 +100,7 @@ PORT=4000
 DATABASE_URL=postgresql://...
 JWT_SECRET=<long-random-secret>
 CORS_ORIGINS=https://yourdomain.com
-SHORT_URL_BASE=https://api.yourdomain.com/api/r
+SHORT_URL_BASE=https://api.yourdomain.com
 ```
 
 ### Web environment (production)

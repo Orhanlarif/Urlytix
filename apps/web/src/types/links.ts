@@ -1,6 +1,6 @@
-import type { LinkSummary } from '@urlytics/shared';
+import type { LinkSummary } from '@urlytix/shared';
 
-export type { LinkStatus } from '@urlytics/shared';
+export type { LinkStatus } from '@urlytix/shared';
 export type LinkItem = LinkSummary;
 
 export type CreateLinkResponse = {

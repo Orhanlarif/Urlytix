@@ -252,7 +252,7 @@ function DashboardPreview() {
                 <div>
                   <p className="text-sm font-medium">{title}</p>
                   <p className="text-xs text-[var(--accent)]/80">
-                    urlytics.app/r/{title.toLowerCase().replace(' ', '-')}
+                    urlytix.com/{title.toLowerCase().replace(' ', '-')}
                   </p>
                 </div>
                 <span className="text-sm text-[var(--muted-foreground)]">

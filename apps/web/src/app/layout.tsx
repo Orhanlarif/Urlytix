@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Urlytics — Privacy-first Link Analytics',
-    template: '%s · Urlytics',
+    default: 'Urlytix — Privacy-first Link Analytics',
+    template: '%s · Urlytix',
   },
   description:
     'Kısa link oluştur, paylaş ve tıklama analytics verilerini ücretsiz takip et.',

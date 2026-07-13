@@ -37,7 +37,7 @@ export default defineConfig({
         NODE_ENV: 'test',
         PORT: apiPort,
         CORS_ORIGINS: webBaseUrl,
-        SHORT_URL_BASE: `${apiBaseUrl}/api/r`,
+        SHORT_URL_BASE: apiBaseUrl,
       },
     },
     {

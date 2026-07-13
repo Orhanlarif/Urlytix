@@ -28,7 +28,7 @@ describe('AnalyticsService', () => {
           provide: AppConfigService,
           useValue: {
             buildShortUrl: (code: string) =>
-              `http://localhost:4000/api/r/${code}`,
+              `http://localhost:4000/${code}`,
           },
         },
         {

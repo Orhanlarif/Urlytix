@@ -36,6 +36,9 @@ export class CreateLinkDto {
   @Matches(/^[a-zA-Z0-9_-]+$/, {
     message: 'Kısa link sadece harf, sayı, tire ve alt çizgi içerebilir.',
   })
+  @Matches(/^(?!(?:api|docs|health|metrics|r)$)/i, {
+    message: 'Bu kısa link sistem tarafından rezerve edilmiştir.',
+  })
   customAlias?: string;
 
   @IsOptional()

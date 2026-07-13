@@ -1,4 +1,4 @@
-const LEGACY_TOKEN_KEY = 'urlytics_token';
+const LEGACY_TOKEN_KEY = 'urlytix_token';
 export const TOKEN_COOKIE = 'access_token';
 
 export function saveToken(token?: string | null) {

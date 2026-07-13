@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppController } from './app.controller';
+import { AppConfigService } from './config/app-config.service';
 import { PrismaService } from './prisma/prisma.service';
 
 describe('AppController', () => {
@@ -15,6 +16,14 @@ describe('AppController', () => {
             $queryRaw: jest.fn().mockResolvedValue([{ '?column?': 1 }]),
           },
         },
+        {
+          provide: AppConfigService,
+          useValue: {
+            appVersion: 'test',
+            isProduction: false,
+            metricsToken: undefined,
+          },
+        },
       ],
     }).compile();
 
@@ -27,6 +36,7 @@ describe('AppController', () => {
 
       expect(result.status).toBe('ok');
       expect(result.database).toBe('connected');
+      expect(result.version).toBe('test');
     });
   });
 });

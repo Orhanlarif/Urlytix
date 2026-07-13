@@ -24,8 +24,8 @@ import { ErrorBanner } from '@/components/ui/error-banner';
 import { Input } from '@/components/ui/input';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { MetricCard } from '@/components/ui/metric-card';
-import { Modal } from '@/components/ui/modal';
 import { PageHeader } from '@/components/ui/page-header';
+import { QrCustomizeModal } from '@/components/qr/qr-customize-modal';
 import { Tabs } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/toast';
 import { useWorkspace } from '@/contexts/workspace-context';
@@ -42,7 +42,6 @@ import {
   getLinkStatusLabel,
   isLinkOperational,
 } from '@/lib/link-status';
-import { createQrCodeDataUrl } from '@/lib/qr';
 import { linksService } from '@/services/links';
 import type { GroupedStat, LinkAnalytics } from '@/types/analytics';
 import type {
@@ -76,12 +75,11 @@ function LinkDetailPageContent() {
 
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
-  const [qrDataUrl, setQrDataUrl] = useState('');
-  const [isQrLoading, setIsQrLoading] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [editTitle, setEditTitle] = useState('');
+  const [editAlias, setEditAlias] = useState('');
   const [editOriginalUrl, setEditOriginalUrl] = useState('');
   const [editExpiresAt, setEditExpiresAt] = useState('');
   const [editPassword, setEditPassword] = useState('');
@@ -101,6 +99,7 @@ function LinkDetailPageContent() {
   useEffect(() => {
     if (!analytics) return;
     setEditTitle(analytics.link.title ?? '');
+    setEditAlias(analytics.link.shortCode);
     setEditOriginalUrl(analytics.link.originalUrl);
     setEditExpiresAt(
       analytics.link.expiresAt
@@ -123,42 +122,37 @@ function LinkDetailPageContent() {
     }
   }
 
-  async function handleGenerateQr() {
-    if (!analytics) return;
-
-    setError('');
-    setIsQrLoading(true);
-
-    try {
-      const dataUrl = await createQrCodeDataUrl(analytics.link.shortUrl);
-      setQrDataUrl(dataUrl);
-    } catch {
-      setError(t.linkDetail.qrFailed);
-    } finally {
-      setIsQrLoading(false);
-    }
-  }
-
-  function handleDownloadQr() {
-    if (!qrDataUrl || !analytics) return;
-
-    const downloadLink = document.createElement('a');
-    downloadLink.href = qrDataUrl;
-    downloadLink.download = `${analytics.link.shortCode}-qr.png`;
-    downloadLink.click();
-  }
-
   function handleOpenShare() {
     setIsShareOpen(true);
-    if (!qrDataUrl && !isQrLoading) {
-      setIsQrLoading(true);
-      void handleGenerateQr();
-    }
   }
 
   async function handleSaveEdit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!analytics) return;
+
+    const nextAlias = editAlias.trim();
+    if (nextAlias.length < 3) {
+      setError(t.links.aliasHint);
+      return;
+    }
+
+    const aliasChanged = nextAlias !== analytics.link.shortCode;
+    if (aliasChanged) {
+      const nextUrl = analytics.link.shortUrl.replace(
+        /\/[^/]+$/,
+        `/${nextAlias}`,
+      );
+      const confirmed = await confirm({
+        title: t.linkDetail.aliasChangeTitle,
+        description: interpolate(t.linkDetail.aliasChangeConfirm, {
+          oldUrl: analytics.link.shortUrl,
+          newUrl: nextUrl,
+        }),
+        confirmLabel: t.common.save,
+        variant: 'danger',
+      });
+      if (!confirmed) return;
+    }
 
     setError('');
     setIsSavingEdit(true);
@@ -170,6 +164,7 @@ function LinkDetailPageContent() {
             expiresAt: editExpiresAt
               ? new Date(editExpiresAt).toISOString()
               : null,
+            ...(aliasChanged ? { customAlias: nextAlias } : {}),
             ...(clearPassword
               ? { password: null }
               : editPassword.trim()
@@ -186,6 +181,14 @@ function LinkDetailPageContent() {
       });
       setEditPassword('');
       setClearPassword(false);
+      if (aliasChanged) {
+        setEditAlias(response.link.shortCode);
+        await queryClient.invalidateQueries({
+          queryKey: workspaceQueryKeys.workspace(
+            currentWorkspace?.id ?? 'none',
+          ),
+        });
+      }
 
       showToast(t.linkDetail.saved);
     } catch (err) {
@@ -592,6 +595,30 @@ function LinkDetailPageContent() {
             onChange={(event) => setEditTitle(event.target.value)}
           />
 
+          <div>
+            <label className="mb-2 block text-sm font-medium text-[var(--muted)]">
+              {t.linkDetail.customAlias}
+            </label>
+            <div className="flex overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] focus-within:border-[var(--accent)]">
+              <span className="border-r border-[var(--border)] px-4 py-3 text-sm text-[var(--muted-foreground)]">
+                /
+              </span>
+              <input
+                value={editAlias}
+                onChange={(event) => setEditAlias(event.target.value)}
+                className="w-full bg-transparent px-4 py-3 text-sm outline-none"
+                placeholder={t.links.aliasPlaceholder}
+                minLength={3}
+                maxLength={32}
+                pattern="[A-Za-z0-9_-]+"
+                required
+              />
+            </div>
+            <p className="mt-2 text-xs text-[var(--muted-foreground)]">
+              {t.linkDetail.customAliasHint}
+            </p>
+          </div>
+
           <Input
             label={t.linkDetail.targetUrl}
             value={editOriginalUrl}
@@ -669,10 +696,9 @@ function LinkDetailPageContent() {
           <Button
             variant="outline"
             onClick={handleOpenShare}
-            disabled={isQrLoading}
             fullWidth
           >
-            {isQrLoading ? t.linkDetail.qrGenerating : t.linkDetail.generateQr}
+            {t.linkDetail.generateQr}
           </Button>
 
           <Button
@@ -707,8 +733,8 @@ function LinkDetailPageContent() {
           {truncateText(analytics.link.originalUrl, 120)}
         </p>
 
-        <div className="mt-5 flex flex-wrap items-center gap-3">
-          <span className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm text-[var(--accent)]">
+        <div className="mt-5 flex min-w-0 flex-wrap items-center gap-3">
+          <span className="min-w-0 max-w-full break-all rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm text-[var(--accent)]">
             {analytics.link.shortUrl}
           </span>
 
@@ -752,57 +778,16 @@ function LinkDetailPageContent() {
         />
       </div>
 
-      <Modal
+      <QrCustomizeModal
         open={isShareOpen}
         onClose={() => setIsShareOpen(false)}
+        shortUrl={analytics.link.shortUrl}
+        shortCode={analytics.link.shortCode}
         title={t.linkDetail.qrSection}
         description={t.linkDetail.qrSectionDesc}
-        closeLabel={t.common.close}
-      >
-        <div className="rounded-2xl border border-[var(--border)] bg-white p-4">
-          {isQrLoading ? (
-            <div
-              role="status"
-              className="flex h-64 items-center justify-center text-sm text-[var(--muted-foreground)]"
-            >
-              {t.linkDetail.qrGenerating}
-            </div>
-          ) : qrDataUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={qrDataUrl}
-              alt={`${analytics.link.shortCode} QR`}
-              className="h-full w-full rounded-xl"
-            />
-          ) : (
-            <div className="flex h-64 items-center justify-center text-sm text-[var(--muted-foreground)]">
-              {t.linkDetail.qrFailed}
-            </div>
-          )}
-        </div>
-
-        <div>
-          <p className="mt-4 text-sm text-[var(--muted-foreground)]">
-            {t.linkDetail.shortLink}
-          </p>
-          <p className="mt-2 break-all rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--accent)]">
-            {analytics.link.shortUrl}
-          </p>
-        </div>
-
-        <div className="mt-5 flex gap-3">
-          <Button
-            onClick={handleDownloadQr}
-            disabled={!qrDataUrl || isQrLoading}
-            fullWidth
-          >
-            {t.common.downloadPng}
-          </Button>
-          <Button variant="secondary" onClick={handleCopy} fullWidth>
-            {copied ? t.common.copied : t.common.copyLink}
-          </Button>
-        </div>
-      </Modal>
+        onCopyLink={() => void handleCopy()}
+        onError={setError}
+      />
     </AppShell>
   );
 }
@@ -839,8 +824,10 @@ function StatsPanel({
             return (
               <div key={item.name}>
                 <div className="flex items-center justify-between gap-4 text-sm">
-                  <span className="text-[var(--foreground)]">{item.name}</span>
-                  <span className="text-[var(--muted-foreground)]">
+                  <span className="min-w-0 flex-1 truncate text-[var(--foreground)]">
+                    {item.name}
+                  </span>
+                  <span className="shrink-0 text-[var(--muted-foreground)]">
                     {item.count} · {percent}%
                   </span>
                 </div>

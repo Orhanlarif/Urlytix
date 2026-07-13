@@ -50,7 +50,7 @@ const copy = {
       password_required: 'Enter the password to continue to this link.',
       password_invalid: 'The password you entered is incorrect. Try again.',
     } satisfies Record<RedirectErrorCode, string>,
-    homeCta: 'Back to Urlytics',
+    homeCta: 'Back to Urlytix',
     passwordTitle: 'Password Required',
     passwordDesc: 'Enter the password to continue to this short link.',
     passwordLabel: 'Password',
@@ -72,7 +72,7 @@ const copy = {
       password_required: 'Bu linke erişmek için şifre girmen gerekiyor.',
       password_invalid: 'Girdiğin şifre hatalı. Tekrar dene.',
     } satisfies Record<RedirectErrorCode, string>,
-    homeCta: 'Urlytics’e Dön',
+    homeCta: 'Urlytix’e Dön',
     passwordTitle: 'Şifre Gerekli',
     passwordDesc: 'Bu kısa linke devam etmek için şifreyi gir.',
     passwordLabel: 'Şifre',
@@ -169,7 +169,7 @@ export function renderRedirectErrorPage(
 ): string {
   const locale = options.locale ?? 'en';
   const strings = copy[locale];
-  const homeUrl = escapeHtml(options.homeUrl ?? 'https://urlytics.app');
+  const homeUrl = escapeHtml(options.homeUrl ?? 'https://urlytix.com');
   const title = strings.titles[code];
   const description = strings.descriptions[code];
   const safeMessage = escapeHtml(translateMessage(message, locale));
@@ -179,12 +179,12 @@ export function renderRedirectErrorPage(
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${title} — Urlytics</title>
+  <title>${title} — Urlytix</title>
   <style>${sharedStyles}</style>
 </head>
 <body>
   <div class="card center">
-    <div class="badge">Urlytics</div>
+    <div class="badge">Urlytix</div>
     <h1>${title}</h1>
     <p>${description}</p>
     <div class="message">${safeMessage}</div>
@@ -211,15 +211,15 @@ export function renderPasswordGatePage(
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${strings.passwordTitle} — Urlytics</title>
+  <title>${strings.passwordTitle} — Urlytix</title>
   <style>${sharedStyles}</style>
 </head>
 <body>
   <div class="card">
-    <div class="badge">Urlytics</div>
+    <div class="badge">Urlytix</div>
     <h1>${strings.passwordTitle}</h1>
     <p style="margin-bottom: 20px;">${strings.passwordDesc}</p>
-    <form method="POST" action="/api/r/${safeCode}" autocomplete="current-password">
+    <form method="POST" action="/${safeCode}" autocomplete="current-password">
       <label for="password">${strings.passwordLabel}</label>
       <input id="password" name="password" type="password" required minlength="1" maxlength="72" autofocus />
       ${safeError ? `<div class="error">${safeError}</div>` : ''}

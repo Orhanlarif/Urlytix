@@ -3,6 +3,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { Test, TestingModule } from '@nestjs/testing';
 import cookieParser from 'cookie-parser';
 import { AppModule } from '../src/app.module';
+import { shortLinkRewriteMiddleware } from '../src/common/middleware/short-link-rewrite.middleware';
 
 export async function createTestApp() {
   const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -12,6 +13,7 @@ export async function createTestApp() {
   const app = moduleFixture.createNestApplication<NestExpressApplication>();
 
   app.set('trust proxy', 1);
+  app.use(shortLinkRewriteMiddleware);
   app.use(cookieParser());
   app.setGlobalPrefix('api');
   app.useGlobalPipes(

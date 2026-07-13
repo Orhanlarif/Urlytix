@@ -20,10 +20,10 @@ test('register, login, default workspace, link redirect, and analytics smoke', a
   page,
 }) => {
   const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const email = `playwright-${unique}@urlytics.test`;
+  const email = `playwright-${unique}@urlytix.test`;
   const password = 'ReleaseGate123!';
   const linkTitle = `Release smoke ${unique}`;
-  const destination = 'https://example.com/urlytics-release-smoke';
+  const destination = 'https://example.com/urlytix-release-smoke';
 
   await page.goto('/analytics');
   await expect(page).toHaveURL(/\/login\?redirect=%2Fanalytics$/);
@@ -61,7 +61,8 @@ test('register, login, default workspace, link redirect, and analytics smoke', a
   const testLink = page.getByRole('link', { name: labels.testLink });
   await expect(testLink).toBeVisible();
   const shortUrl = await testLink.getAttribute('href');
-  expect(shortUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/api\/r\//);
+  expect(shortUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/[A-Za-z0-9_-]+$/);
+  expect(shortUrl).not.toContain('/api/r/');
 
   const redirect = await page.request.get(shortUrl!, { maxRedirects: 0 });
   expect(redirect.status()).toBe(302);

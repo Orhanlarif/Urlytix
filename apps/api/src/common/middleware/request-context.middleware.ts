@@ -16,8 +16,11 @@ export class RequestContextMiddleware implements NestMiddleware {
     request.requestId = requestId;
     response.setHeader('x-request-id', requestId);
     response.on('finish', () => {
+      const durationMs = Date.now() - startedAt;
+      // Avoid logging raw query strings that may contain tokens.
+      const pathOnly = request.originalUrl.split('?')[0] ?? request.originalUrl;
       this.logger.log(
-        `${request.method} ${request.originalUrl} ${response.statusCode} ${Date.now() - startedAt}ms requestId=${requestId}`,
+        `${request.method} ${pathOnly} ${response.statusCode} ${durationMs}ms requestId=${requestId}`,
       );
     });
     next();

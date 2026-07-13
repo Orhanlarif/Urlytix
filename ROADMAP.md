@@ -1,19 +1,19 @@
-# Urlytics Product Quality Plan
+# Urlytix Product Quality Plan
 
-Last reviewed: 2026-07-12
+Last reviewed: 2026-07-13
 
 This is the canonical product-status and product-quality document.
 `PROJECT_STATUS.md` only points here so status and priorities cannot drift between
 two lists.
 
-Urlytics will not move forward by blindly adding the next roadmap feature. The
+Urlytix will not move forward by blindly adding the next roadmap feature. The
 current priority is to turn the working product into a polished, reliable,
 professional SaaS experience. New feature work should wait until the core flows,
 production readiness, and user experience are strong enough to support them.
 
 ## Product goal
 
-Urlytics is a multi-tenant SaaS for creating short links, managing their lifecycle,
+Urlytix is a multi-tenant SaaS for creating short links, managing their lifecycle,
 and understanding traffic. The first product phase should feel complete and
 trustworthy without relying on paid plans, advanced automation, or extra modules.
 
@@ -69,16 +69,16 @@ Known constraints:
 - [x] Audit all existing user flows end to end: registration, login, dashboard,
   link creation, link management, redirect, analytics, settings, and workspace
   switching
-- [ ] Fix broken, confusing, or inconsistent behavior before adding any new feature
-- [ ] Standardize validation, error messages, success messages, and loading states
+- [x] Fix broken, confusing, or inconsistent behavior before adding any new feature
+- [x] Standardize validation, error messages, success messages, and loading states
   across the API and web app
-- [ ] Improve empty states and first-run guidance so a new user understands what to
+- [x] Improve empty states and first-run guidance so a new user understands what to
   do immediately
-- [ ] Review responsive behavior for dashboard, link tables, analytics, settings,
+- [x] Review responsive behavior for dashboard, link tables, analytics, settings,
   and navigation
-- [ ] Make destructive actions clear and safe with confirmations and predictable
+- [x] Make destructive actions clear and safe with confirmations and predictable
   recovery paths
-- [ ] Remove or hide unfinished surfaces that create a less professional impression
+- [x] Remove or hide unfinished surfaces that create a less professional impression
 
 #### Current stabilization backlog
 
@@ -111,8 +111,10 @@ Known constraints:
 - [x] Align analytics breakdowns (device/referrer/geo/top links) with the selected
   date range instead of recent-click samples
 - [x] Improve public redirect error/password pages (locale + web app home CTA)
-- [ ] Finish 2FA backup-code save/copy UX and password-rule hints on reset/change forms
-- [ ] Document or configure cookie Domain for split web/API production hosts
+- [x] Finish 2FA backup-code save/copy UX and password-rule hints on reset/change forms
+- [x] Document or configure cookie Domain for split web/API production hosts
+- [x] Mobile responsive pass: bottom nav, chart/tab overflow, touch targets,
+  dropdown flip, stacked modal actions
 
 ### P1 — UX and visual polish
 
@@ -134,13 +136,16 @@ Known constraints:
 - [x] Add migration validation to CI and provide a guarded CD workflow
 - [x] Document backup, restore, rollback, incident runbook, observability, and SLOs
 - [x] Publish a dependency-free OpenAPI contract for current API surfaces
-- [ ] Provision staging and execute restore plus rollback drills
-- [ ] Connect metrics, centralized logs, tracing/error tracking, and SLO alerts
-- [ ] Run load tests for redirects and analytics reads; establish capacity limits
-- [ ] Review API security, CORS, cookies, rate limits, headers, and tenant isolation
-  before production launch
-- [ ] Ensure CI lint, tests, migrations, builds, and E2E coverage represent the real
-  release standard
+- [ ] Provision external staging host and run `pnpm release:staging:gate` against it
+      (operator checklist: `docs/staging-checklist.md`)
+- [x] Automate local restore drill (`pnpm ops:restore-drill`) and document image rollback
+- [x] Connect structured JSON logs, optional Sentry (`SENTRY_DSN`), and `/api/metrics`
+- [x] Add load-test harness for health/redirect/analytics (`pnpm load:test`); establish
+      capacity limits after a staging run on production-like hardware
+- [x] Review API security, CORS, cookies, rate limits, headers, and tenant isolation
+      (`docs/security-review.md`); optional `COOKIE_DOMAIN` for split hosts
+- [x] Ensure CI lint, tests, migrations, builds, and E2E coverage represent the real
+      release standard (`docs/ci-release-standard.md`)
 
 ### P3 — technical quality and maintainability
 

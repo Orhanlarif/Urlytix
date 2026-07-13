@@ -514,7 +514,7 @@ export class AuthService {
       data: { totpSecret: encrypted, totpEnabledAt: null },
     });
 
-    const otpauthUrl = authenticator.keyuri(user.email, 'Urlytics', secret);
+    const otpauthUrl = authenticator.keyuri(user.email, 'Urlytix', secret);
     const qrCodeDataUrl = await QRCode.toDataURL(otpauthUrl);
 
     return {

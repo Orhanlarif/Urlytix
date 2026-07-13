@@ -57,6 +57,7 @@ export type Translation = {
     dashboard: string;
     links: string;
     analytics: string;
+    workspace: string;
     settings: string;
     account: string;
     tagline: string;
@@ -66,6 +67,9 @@ export type Translation = {
   };
   workspace: {
     label: string;
+    pageTitle: string;
+    pageDescription: string;
+    generalTab: string;
     select: string;
     create: string;
     createTitle: string;
@@ -85,9 +89,10 @@ export type Translation = {
     badge: string;
     title: string;
     description: string;
-    generalTab: string;
+    accountTab: string;
     securityTab: string;
     workspaceTab: string;
+    advancedTab: string;
     membersTab: string;
     domainsTab: string;
     apiKeysTab: string;
@@ -130,6 +135,11 @@ export type Translation = {
     twoFactorEnableFailed: string;
     twoFactorBackupTitle: string;
     twoFactorBackupDescription: string;
+    twoFactorBackupCopy: string;
+    twoFactorBackupCopied: string;
+    twoFactorBackupDownload: string;
+    twoFactorBackupDismiss: string;
+    twoFactorBackupCopyFailed: string;
     twoFactorDisable: string;
     twoFactorDisableTitle: string;
     twoFactorDisableDescription: string;
@@ -188,6 +198,9 @@ export type Translation = {
     roleAdmin: string;
     roleMember: string;
     roleViewer: string;
+    roleAdminDescription: string;
+    roleMemberDescription: string;
+    roleViewerDescription: string;
     you: string;
     domainsTitle: string;
     domainsDescription: string;
@@ -446,6 +459,7 @@ export type Translation = {
     listDesc: string;
     noLinks: string;
     noLinksDesc: string;
+    createFirstCta: string;
     createdAt: string;
     expires: string;
     deactivate: string;
@@ -453,6 +467,7 @@ export type Translation = {
     deactivateConfirm: string;
     deleteConfirm: string;
     created: string;
+    linkCopied: string;
     deactivated: string;
     activated: string;
     deleted: string;
@@ -486,6 +501,10 @@ export type Translation = {
     created: string;
     expires: string;
     editTitle: string;
+    customAlias: string;
+    customAliasHint: string;
+    aliasChangeTitle: string;
+    aliasChangeConfirm: string;
     targetUrl: string;
     expiresAt: string;
     expiresHint: string;
@@ -544,9 +563,22 @@ export type Translation = {
     type: string;
     shareCta: string;
   };
+  qr: {
+    foreground: string;
+    background: string;
+    size: string;
+    sizeSmall: string;
+    sizeMedium: string;
+    sizeLarge: string;
+    resetDefaults: string;
+  };
   status: {
     active: string;
     disabled: string;
     expired: string;
+    allDescription: string;
+    activeDescription: string;
+    disabledDescription: string;
+    expiredDescription: string;
   };
 };

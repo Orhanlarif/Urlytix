@@ -12,6 +12,7 @@ import {
   Plus,
   TrendingUp,
 } from 'lucide-react';
+
 import { DailyClicksChart } from '@/components/analytics/daily-clicks-chart';
 import { OnboardingJourney } from '@/components/journey/onboarding-journey';
 import { AppShell } from '@/components/layout/app-shell';
@@ -67,7 +68,12 @@ export default function DashboardPage() {
       });
       setHeroCreatedLink(response.link);
       setHeroUrl('');
-      showToast(t.links.created);
+      try {
+        await navigator.clipboard.writeText(response.link.shortUrl);
+        showToast(t.links.linkCopied);
+      } catch {
+        showToast(t.links.created);
+      }
       await queryClient.invalidateQueries({
         queryKey: workspaceQueryKeys.workspace(currentWorkspace.id),
       });
@@ -186,7 +192,6 @@ export default function DashboardPage() {
               <div className="flex flex-wrap gap-2">
                 <Button
                   size="sm"
-                  variant="outline"
                   onClick={async () => {
                     try {
                       await navigator.clipboard.writeText(
@@ -210,7 +215,9 @@ export default function DashboardPage() {
                   </Button>
                 </a>
                 <Link href={`/links/${heroCreatedLink.id}`}>
-                  <Button size="sm">{t.common.manage}</Button>
+                  <Button size="sm" variant="outline">
+                    {t.common.manage}
+                  </Button>
                 </Link>
               </div>
             </div>
@@ -389,17 +396,9 @@ export default function DashboardPage() {
             progressLabel={t.dashboard.journeyProgress}
             steps={[
               {
-                label: t.workspace.label,
-                description: currentWorkspace.name,
-                href: '/settings',
-                actionLabel: t.workspace.label,
-                complete: true,
-                icon: Building2,
-              },
-              {
                 label: t.dashboard.newLink,
                 description: t.dashboard.noLinksDesc,
-                href: '/links',
+                href: '/links#create-link',
                 actionLabel: t.dashboard.newLink,
                 complete: overview.totalLinks > 0,
                 icon: Link2,
@@ -407,11 +406,10 @@ export default function DashboardPage() {
               {
                 label: t.common.testLink,
                 description: t.dashboard.noClicksDesc,
-                href: overview.topLinks[0]
-                  ? `/links/${overview.topLinks[0].id}`
-                  : '/links',
+                href: overview.topLinks[0]?.shortUrl ?? '/links#create-link',
                 actionLabel: t.common.testLink,
                 complete: overview.totalClicks > 0,
+                openInNewTab: Boolean(overview.topLinks[0]?.shortUrl),
                 icon: ExternalLink,
               },
               {

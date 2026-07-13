@@ -9,7 +9,7 @@ import {
 } from 'react';
 import { getTranslations, type Locale, type Translation } from '@/i18n';
 
-const LOCALE_KEY = 'urlytics-locale';
+const LOCALE_KEY = 'urlytix-locale';
 
 function readStoredLocale(): Locale {
   if (typeof window === 'undefined') return 'tr';

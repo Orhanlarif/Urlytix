@@ -95,15 +95,18 @@ export function Modal({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
-        className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-raised)] p-6 shadow-[var(--shadow-lg)] outline-none"
+        className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface-raised)] p-5 shadow-[var(--shadow-lg)] outline-none sm:p-6"
       >
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 id={titleId} className="text-heading">
+        <div className="flex items-start justify-between gap-3 sm:gap-4">
+          <div className="min-w-0 flex-1 pr-1">
+            <h2 id={titleId} className="text-heading break-words">
               {title}
             </h2>
             {description && (
-              <p id={descriptionId} className="mt-1 text-sm leading-6 text-[var(--muted-foreground)]">
+              <p
+                id={descriptionId}
+                className="mt-1.5 break-words text-sm leading-6 text-[var(--muted-foreground)]"
+              >
                 {description}
               </p>
             )}
@@ -112,12 +115,12 @@ export function Modal({
             type="button"
             aria-label={closeLabel}
             onClick={onClose}
-            className="rounded-lg p-2 text-[var(--muted-foreground)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-[var(--muted-foreground)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="mt-6">{children}</div>
+        <div className="mt-5 sm:mt-6">{children}</div>
       </div>
     </div>
   );

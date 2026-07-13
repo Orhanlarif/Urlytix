@@ -59,13 +59,14 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
         {pending && (
           <>
             {pending.variant === 'danger' && (
-              <div className="mb-4 -mt-1 flex h-11 w-11 items-center justify-center rounded-full border border-[var(--danger-border)] bg-[var(--danger-muted)]">
+              <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-full border border-[var(--danger-border)] bg-[var(--danger-muted)]">
                 <AlertTriangle className="h-5 w-5 text-[var(--danger)]" />
               </div>
             )}
             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <Button
                 variant="secondary"
+                className="sm:min-w-28"
                 onClick={() => handleClose(false)}
               >
                 {pending.cancelLabel ?? t.common.cancel}
@@ -73,6 +74,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
 
               <Button
                 variant={pending.variant === 'danger' ? 'danger' : 'primary'}
+                className="sm:min-w-28"
                 onClick={() => handleClose(true)}
               >
                 {pending.confirmLabel ?? t.common.confirm}

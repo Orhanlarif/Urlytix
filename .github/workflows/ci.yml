@@ -14,21 +14,21 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: urlytics
-          POSTGRES_PASSWORD: urlytics_password
-          POSTGRES_DB: urlytics_db
+          POSTGRES_USER: urlytix
+          POSTGRES_PASSWORD: urlytix_password
+          POSTGRES_DB: urlytix_db
         ports:
           - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U urlytics -d urlytics_db"
+          --health-cmd="pg_isready -U urlytix -d urlytix_db"
           --health-interval=5s
           --health-timeout=5s
           --health-retries=10
 
     env:
-      DATABASE_URL: postgresql://urlytics:urlytics_password@localhost:5432/urlytics_db
+      DATABASE_URL: postgresql://urlytix:urlytix_password@localhost:5432/urlytix_db
       JWT_SECRET: ci_test_jwt_secret_key_minimum_32_chars
-      SHORT_URL_BASE: http://localhost:4000/api/r
+      SHORT_URL_BASE: http://localhost:4000
       CORS_ORIGINS: http://localhost:3000
       NEXT_PUBLIC_API_URL: http://localhost:4000/api
       NODE_ENV: test
@@ -69,6 +69,14 @@ jobs:
           document = YAML.safe_load_file('docs/openapi.yaml', aliases: false);
           abort('missing openapi version') unless document['openapi']"
 
+      - name: Verify release-standard docs present
+        run: >-
+          test -f docs/ci-release-standard.md &&
+          test -f docs/security-review.md &&
+          test -f docs/staging-checklist.md &&
+          test -f docs/observability-slo.md &&
+          test -f docs/runbook.md
+
       - name: Lint
         run: pnpm lint
 
@@ -88,10 +96,10 @@ jobs:
         run: pnpm test:web:e2e
 
       - name: Build production API image
-        run: docker build --file infra/docker/api.Dockerfile --target runtime --tag urlytics-api:ci .
+        run: docker build --file infra/docker/api.Dockerfile --target runtime --tag urlytix-api:ci .
 
       - name: Build production migration image
-        run: docker build --file infra/docker/api.Dockerfile --target migration --tag urlytics-migrate:ci .
+        run: docker build --file infra/docker/api.Dockerfile --target migration --tag urlytix-migrate:ci .
 
       - name: Build production web image
         run: >-
@@ -99,5 +107,5 @@ jobs:
           --build-arg NEXT_PUBLIC_API_URL=http://localhost:4000/api
           --file infra/docker/web.Dockerfile
           --target runtime
-          --tag urlytics-web:ci
+          --tag urlytix-web:ci
           .

@@ -5,14 +5,24 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { JsonLogger } from './common/logging/json-logger';
+import { shortLinkRewriteMiddleware } from './common/middleware/short-link-rewrite.middleware';
+import { initSentryIfConfigured } from './common/observability/sentry';
 import { AppConfigService } from './config/app-config.service';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  await initSentryIfConfigured();
+
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    logger: new JsonLogger(),
+  });
 
   const appConfig = app.get(AppConfigService);
 
   app.set('trust proxy', 1);
+
+  // Pretty short URLs: /{code} → /api/r/{code} (must run before Nest routing)
+  app.use(shortLinkRewriteMiddleware);
 
   app.use(cookieParser());
 
@@ -53,11 +63,11 @@ async function bootstrap() {
 
   if (!appConfig.isProduction) {
     const swaggerConfig = new DocumentBuilder()
-      .setTitle('Urlytics API')
+      .setTitle('Urlytix API')
       .setDescription('Link management, analytics and workspace API')
       .setVersion('1.0')
       .addBearerAuth()
-      .addCookieAuth('urlytics_access')
+      .addCookieAuth('urlytix_access')
       .build();
     const document = SwaggerModule.createDocument(app, swaggerConfig);
     SwaggerModule.setup('docs', app, document, { useGlobalPrefix: true });

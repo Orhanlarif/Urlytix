@@ -37,10 +37,10 @@ export function Tabs({
       <div
         role="tablist"
         className={cn(
-          'flex gap-1 overflow-x-auto',
+          'flex max-w-full gap-1 overflow-x-auto',
           variant === 'underline'
             ? 'border-b border-[var(--border)]'
-            : 'w-fit rounded-[var(--radius-full)] border border-[var(--border)] bg-[var(--surface)] p-1',
+            : 'w-full rounded-[var(--radius-full)] border border-[var(--border)] bg-[var(--surface)] p-1',
         )}
       >
         {tabs.map((tab, index) => (

@@ -1,6 +1,6 @@
 'use client';
 
-import type { AuthSession } from '@urlytics/shared';
+import type { AuthSession } from '@urlytix/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { FormEvent, useState } from 'react';
 import { KeyRound, MonitorSmartphone, ShieldCheck } from 'lucide-react';
@@ -114,6 +114,39 @@ export function SecuritySettings() {
     }
   }
 
+  async function handleCopyBackupCodes() {
+    if (!backupCodes?.length) return;
+    try {
+      await navigator.clipboard.writeText(backupCodes.join('\n'));
+      showToast(t.settings.twoFactorBackupCopied);
+    } catch {
+      showToast(t.settings.twoFactorBackupCopyFailed, 'error');
+    }
+  }
+
+  function handleDownloadBackupCodes() {
+    if (!backupCodes?.length) return;
+    const blob = new Blob(
+      [
+        [
+          'Urlytix two-factor backup codes',
+          `Generated: ${new Date().toISOString()}`,
+          '',
+          ...backupCodes,
+          '',
+          'Each code can be used once. Store these somewhere safe.',
+        ].join('\n'),
+      ],
+      { type: 'text/plain;charset=utf-8' },
+    );
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'urlytix-2fa-backup-codes.txt';
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
   async function handleDisableTwoFactor(event: FormEvent) {
     event.preventDefault();
     const ok = await confirm({
@@ -147,7 +180,7 @@ export function SecuritySettings() {
     try {
       const result = await authService.revokeSession(session.id);
       if (result.revokedCurrent) {
-        logout('/login?expired=1');
+        logout('/login');
         return;
       }
       showToast(t.settings.sessionRevoked);
@@ -200,6 +233,7 @@ export function SecuritySettings() {
             label={t.settings.newPassword}
             autoComplete="new-password"
             required
+            minLength={12}
             hint={t.auth.passwordHint}
             value={newPassword}
             onChange={(event) => setNewPassword(event.target.value)}
@@ -209,6 +243,7 @@ export function SecuritySettings() {
             label={t.settings.confirmPassword}
             autoComplete="new-password"
             required
+            minLength={12}
             value={confirmPassword}
             onChange={(event) => setConfirmPassword(event.target.value)}
           />
@@ -278,6 +313,31 @@ export function SecuritySettings() {
                   <li key={code}>{code}</li>
                 ))}
               </ul>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void handleCopyBackupCodes()}
+                >
+                  {t.settings.twoFactorBackupCopy}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleDownloadBackupCodes}
+                >
+                  {t.settings.twoFactorBackupDownload}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => setBackupCodes(null)}
+                >
+                  {t.settings.twoFactorBackupDismiss}
+                </Button>
+              </div>
             </div>
           )}
 

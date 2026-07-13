@@ -34,9 +34,9 @@ type LinkRecord = {
   passwordHash?: string | null;
 };
 
-const VISITOR_COOKIE = 'urlytics_vid';
+const VISITOR_COOKIE = 'urlytix_vid';
 const VISITOR_COOKIE_MAX_AGE_MS = 365 * 24 * 60 * 60 * 1000;
-const LINK_PASSWORD_COOKIE_PREFIX = 'urlytics_lp_';
+const LINK_PASSWORD_COOKIE_PREFIX = 'urlytix_lp_';
 const LINK_PASSWORD_COOKIE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const LINK_WRITE_ROLES = ['OWNER', 'ADMIN', 'MEMBER'] as const;
 
@@ -108,6 +108,7 @@ export class LinksService {
     const data: {
       originalUrl?: string;
       title?: string;
+      shortCode?: string;
       expiresAt?: Date | null;
       status?: LinkStatus;
       passwordHash?: string | null;
@@ -120,6 +121,20 @@ export class LinksService {
 
     if (updateLinkDto.title !== undefined) {
       data.title = updateLinkDto.title;
+    }
+
+    if (updateLinkDto.customAlias !== undefined) {
+      const nextCode = updateLinkDto.customAlias;
+      if (nextCode !== link.shortCode) {
+        const existingLink = await this.prisma.link.findUnique({
+          where: { shortCode: nextCode },
+          select: { id: true },
+        });
+        if (existingLink) {
+          throw new ConflictException('Bu kısa link zaten kullanılıyor.');
+        }
+        data.shortCode = nextCode;
+      }
     }
 
     if (updateLinkDto.expiresAt !== undefined) {
@@ -501,21 +516,17 @@ export class LinksService {
     };
   }
 
-  getVisitorCookieOptions(isProduction: boolean) {
+  getVisitorCookieOptions() {
     return {
+      ...this.appConfig.cookieBaseOptions,
       maxAge: VISITOR_COOKIE_MAX_AGE_MS,
-      httpOnly: true,
-      sameSite: 'lax' as const,
-      secure: isProduction,
     };
   }
 
-  getPasswordCookieOptions(isProduction: boolean) {
+  getPasswordCookieOptions() {
     return {
+      ...this.appConfig.cookieBaseOptions,
       maxAge: LINK_PASSWORD_COOKIE_MAX_AGE_MS,
-      httpOnly: true,
-      sameSite: 'lax' as const,
-      secure: isProduction,
     };
   }
 

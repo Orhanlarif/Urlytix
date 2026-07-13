@@ -1,10 +1,10 @@
 openapi: 3.1.0
 info:
-  title: Urlytics API
+  title: Urlytix API
   version: 0.1.0
   description: |
-    Contract for implemented and planned Urlytics endpoints. Operations marked
-    `x-urlytics-status: planned` are design targets and are not available yet.
+    Contract for implemented and planned Urlytix endpoints. Operations marked
+    `x-urlytix-status: planned` are design targets and are not available yet.
     Billing is retained for a later phase and its implemented routes return 404
     unless the server is explicitly started with `BILLING_ENABLED=true`.
     Registering a user atomically provisions an OWNER default workspace.
@@ -31,7 +31,7 @@ paths:
       tags: [System]
       operationId: getHealth
       summary: Check API and database readiness
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       security: []
       responses:
         "200":
@@ -49,7 +49,7 @@ paths:
       operationId: register
       summary: Register a user
       description: Creates the user, an OWNER default workspace, and a refresh session.
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       security: []
       requestBody:
         required: true
@@ -74,7 +74,7 @@ paths:
       tags: [Auth]
       operationId: login
       summary: Authenticate a user
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       security: []
       requestBody:
         required: true
@@ -99,7 +99,7 @@ paths:
       tags: [Auth]
       operationId: getCurrentUser
       summary: Get the current user
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       responses:
         "200":
           description: Current user
@@ -115,7 +115,7 @@ paths:
       tags: [Auth]
       operationId: refreshSession
       summary: Rotate a refresh token and issue a new access token
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       security:
         - refreshCookie: []
       responses:
@@ -133,7 +133,7 @@ paths:
       tags: [Auth]
       operationId: logout
       summary: Revoke the active refresh-token family
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       security:
         - refreshCookie: []
       responses:
@@ -151,7 +151,7 @@ paths:
       tags: [Links]
       operationId: listLinks
       summary: List links in a workspace
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       parameters:
         - $ref: "#/components/parameters/WorkspaceIdQuery"
       responses:
@@ -185,7 +185,7 @@ paths:
       tags: [Links]
       operationId: createLink
       summary: Create a short link
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       requestBody:
         required: true
         content:
@@ -213,7 +213,7 @@ paths:
       tags: [Links]
       operationId: getLink
       summary: Get an owned link
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       responses:
         "200":
           description: Link
@@ -229,7 +229,7 @@ paths:
       tags: [Links]
       operationId: updateLink
       summary: Update an owned link
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       requestBody:
         required: true
         content:
@@ -253,7 +253,7 @@ paths:
       tags: [Links]
       operationId: deleteLink
       summary: Delete an owned link
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       responses:
         "200":
           description: Deletion result
@@ -273,7 +273,7 @@ paths:
       tags: [Links]
       operationId: updateLinkStatus
       summary: Change link status
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       requestBody:
         required: true
         content:
@@ -299,7 +299,11 @@ paths:
       tags: [Links]
       operationId: redirectShortLink
       summary: Resolve and track a short link
-      x-urlytics-status: implemented
+      description: |
+        Public short links are advertised as `/{shortCode}` on the API host
+        (for example `https://go.example.com/abc1234`). That path is rewritten
+        to this handler. The `/api/r/{shortCode}` form remains supported.
+      x-urlytix-status: implemented
       security: []
       parameters:
         - name: shortCode
@@ -348,7 +352,7 @@ paths:
       operationId: unlockPasswordProtectedLink
       summary: Verify a protected-link password and redirect
       description: Limited to 5 attempts per minute per throttling identity.
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       security: []
       parameters:
         - name: shortCode
@@ -406,7 +410,7 @@ paths:
       tags: [Analytics]
       operationId: getAnalyticsOverview
       summary: Get dashboard analytics for a workspace
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       parameters:
         - $ref: "#/components/parameters/WorkspaceIdQuery"
       responses:
@@ -424,7 +428,7 @@ paths:
       tags: [Analytics]
       operationId: getLinkAnalytics
       summary: Get analytics for an owned link
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       parameters:
         - $ref: "#/components/parameters/LinkId"
       responses:
@@ -446,7 +450,7 @@ paths:
       tags: [Settings]
       operationId: updateProfile
       summary: Update current user profile
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       requestBody:
         required: true
         content:
@@ -484,7 +488,7 @@ paths:
       tags: [Auth]
       operationId: forgotPassword
       summary: Request a password reset email
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       security: []
       requestBody:
         required: true
@@ -513,7 +517,7 @@ paths:
       tags: [Auth]
       operationId: resetPassword
       summary: Reset password with emailed token
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       security: []
       requestBody:
         required: true
@@ -545,7 +549,7 @@ paths:
       tags: [Auth]
       operationId: changePassword
       summary: Change password and revoke other sessions
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       requestBody:
         required: true
         content:
@@ -578,7 +582,7 @@ paths:
       tags: [Auth]
       operationId: listSessions
       summary: List active refresh sessions
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       responses:
         "200":
           description: Active sessions
@@ -594,7 +598,7 @@ paths:
       tags: [Auth]
       operationId: revokeOtherSessions
       summary: Revoke all sessions except the current one
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       responses:
         "200":
           description: Other sessions revoked
@@ -610,7 +614,7 @@ paths:
       tags: [Auth]
       operationId: revokeSession
       summary: Revoke a single session
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       parameters:
         - name: sessionId
           in: path
@@ -635,7 +639,7 @@ paths:
       tags: [Auth]
       operationId: setupTwoFactor
       summary: Begin TOTP setup
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       responses:
         "201":
           description: Setup payload
@@ -660,7 +664,7 @@ paths:
       tags: [Auth]
       operationId: enableTwoFactor
       summary: Enable TOTP after verifying a code
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       requestBody:
         required: true
         content:
@@ -699,7 +703,7 @@ paths:
       tags: [Auth]
       operationId: disableTwoFactor
       summary: Disable TOTP with password and code
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       requestBody:
         required: true
         content:
@@ -730,7 +734,7 @@ paths:
       tags: [Auth]
       operationId: verifyTwoFactor
       summary: Complete login with TOTP or backup code
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       security: []
       requestBody:
         required: true
@@ -760,7 +764,7 @@ paths:
       tags: [Settings]
       operationId: deleteAccount
       summary: Schedule account deletion
-      x-urlytics-status: planned
+      x-urlytix-status: planned
       responses:
         "202":
           description: Deletion scheduled
@@ -776,7 +780,7 @@ paths:
       tags: [Workspaces]
       operationId: listWorkspaces
       summary: List workspaces for the current user
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       responses:
         "200":
           description: Workspaces
@@ -792,7 +796,7 @@ paths:
       tags: [Workspaces]
       operationId: createWorkspace
       summary: Create a workspace
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       requestBody:
         required: true
         content:
@@ -828,7 +832,7 @@ paths:
       tags: [Workspaces]
       operationId: getWorkspace
       summary: Get a workspace
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       responses:
         "200":
           description: Workspace
@@ -842,7 +846,7 @@ paths:
       tags: [Workspaces]
       operationId: updateWorkspace
       summary: Update a workspace
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       requestBody:
         required: true
         content:
@@ -871,7 +875,7 @@ paths:
       tags: [Workspaces]
       operationId: deleteWorkspace
       summary: Delete a workspace owned by the current user
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       requestBody:
         required: true
         content:
@@ -905,7 +909,7 @@ paths:
       tags: [Workspaces]
       operationId: listWorkspaceMembers
       summary: List workspace members
-      x-urlytics-status: planned
+      x-urlytix-status: planned
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
       responses:
@@ -923,7 +927,7 @@ paths:
       tags: [Workspaces]
       operationId: addWorkspaceMember
       summary: Add an existing user to a workspace
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
       requestBody:
@@ -965,7 +969,7 @@ paths:
       tags: [Workspaces]
       operationId: updateWorkspaceMemberRole
       summary: Update a workspace member role
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       requestBody:
         required: true
         content:
@@ -993,7 +997,7 @@ paths:
       tags: [Workspaces]
       operationId: removeWorkspaceMember
       summary: Remove a workspace member
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       responses:
         "200":
           description: Member removed
@@ -1011,7 +1015,7 @@ paths:
       tags: [Workspaces]
       operationId: inviteWorkspaceMember
       summary: Invite a workspace member
-      x-urlytics-status: planned
+      x-urlytix-status: planned
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
       requestBody:
@@ -1045,7 +1049,7 @@ paths:
       tags: [Billing]
       operationId: listBillingPlans
       summary: List available plans
-      x-urlytics-status: disabled-by-default
+      x-urlytix-status: disabled-by-default
       security: []
       responses:
         "200":
@@ -1067,7 +1071,7 @@ paths:
       tags: [Billing]
       operationId: getSubscription
       summary: Get workspace subscription and entitlements
-      x-urlytics-status: disabled-by-default
+      x-urlytix-status: disabled-by-default
       responses:
         "200":
           description: Subscription
@@ -1081,7 +1085,7 @@ paths:
       tags: [Billing]
       operationId: changeSubscriptionPlan
       summary: Change the workspace plan
-      x-urlytics-status: disabled-by-default
+      x-urlytix-status: disabled-by-default
       requestBody:
         required: true
         content:
@@ -1112,7 +1116,7 @@ paths:
       tags: [Billing]
       operationId: createCheckout
       summary: Create a hosted checkout session
-      x-urlytics-status: planned
+      x-urlytix-status: planned
       parameters:
         - $ref: "#/components/parameters/WorkspaceHeader"
       requestBody:
@@ -1148,7 +1152,7 @@ paths:
       tags: [Billing]
       operationId: createBillingPortal
       summary: Create a hosted billing portal session
-      x-urlytics-status: planned
+      x-urlytix-status: planned
       parameters:
         - $ref: "#/components/parameters/WorkspaceHeader"
       responses:
@@ -1173,7 +1177,7 @@ paths:
       operationId: receiveBillingProviderWebhook
       summary: Receive a signed billing-provider event
       description: The implementation must verify the signature against the raw body.
-      x-urlytics-status: planned
+      x-urlytix-status: planned
       security: []
       parameters:
         - name: Provider-Signature
@@ -1201,7 +1205,7 @@ paths:
       tags: [API keys]
       operationId: listApiKeys
       summary: List workspace API-key metadata
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       responses:
         "200":
           description: API keys
@@ -1216,7 +1220,7 @@ paths:
       operationId: createApiKey
       summary: Create a workspace API key
       description: The plaintext secret is returned exactly once.
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       requestBody:
         required: true
         content:
@@ -1253,7 +1257,7 @@ paths:
       tags: [API keys]
       operationId: revokeApiKey
       summary: Revoke an API key
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
         - name: apiKeyId
@@ -1279,7 +1283,7 @@ paths:
       tags: [Webhooks]
       operationId: listWebhooks
       summary: List workspace webhook subscriptions
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       responses:
         "200":
           description: Webhooks
@@ -1294,7 +1298,7 @@ paths:
       operationId: createWebhook
       summary: Create a webhook subscription
       description: The signing secret is returned exactly once.
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       requestBody:
         required: true
         content:
@@ -1343,7 +1347,7 @@ paths:
       tags: [Webhooks]
       operationId: updateWebhook
       summary: Update a webhook subscription
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       requestBody:
         required: true
         content:
@@ -1370,7 +1374,7 @@ paths:
       tags: [Webhooks]
       operationId: deleteWebhook
       summary: Delete a webhook subscription
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       responses:
         "200":
           description: Webhook deleted
@@ -1386,7 +1390,7 @@ paths:
       tags: [Webhooks]
       operationId: listWebhookDeliveries
       summary: List recent webhook deliveries
-      x-urlytics-status: planned
+      x-urlytix-status: planned
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
         - $ref: "#/components/parameters/WebhookId"
@@ -1405,7 +1409,7 @@ paths:
       tags: [Webhooks]
       operationId: retryWebhookDelivery
       summary: Queue a failed delivery for retry
-      x-urlytics-status: planned
+      x-urlytix-status: planned
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
         - $ref: "#/components/parameters/WebhookId"
@@ -1428,7 +1432,7 @@ paths:
       tags: [Domains]
       operationId: listDomains
       summary: List branded domains
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       responses:
         "200":
           description: Workspace domains
@@ -1436,7 +1440,7 @@ paths:
       tags: [Domains]
       operationId: createDomain
       summary: Register a branded domain
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       requestBody:
         required: true
         content:
@@ -1459,7 +1463,7 @@ paths:
       tags: [Domains]
       operationId: verifyDomain
       summary: Verify a branded domain TXT record
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
         - name: domainId
@@ -1477,7 +1481,7 @@ paths:
       tags: [Domains]
       operationId: deleteDomain
       summary: Remove a branded domain
-      x-urlytics-status: implemented
+      x-urlytix-status: implemented
       parameters:
         - $ref: "#/components/parameters/WorkspaceId"
         - name: domainId
@@ -1597,7 +1601,7 @@ components:
           enum: [ok, error]
         app:
           type: string
-          const: Urlytics API
+          const: Urlytix API
         database:
           type: string
           enum: [connected, disconnected]
@@ -1773,6 +1777,12 @@ components:
         title:
           type: string
           maxLength: 80
+        customAlias:
+          type: string
+          minLength: 3
+          maxLength: 32
+          pattern: '^[a-zA-Z0-9_-]+$'
+          description: Changes the public short path. The previous short URL stops working.
         expiresAt:
           type: [string, "null"]
           format: date-time

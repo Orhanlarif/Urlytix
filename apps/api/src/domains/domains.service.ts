@@ -48,7 +48,7 @@ export class DomainsService {
     const domain = await this.getOwnedDomain(workspaceId, domainId);
     let records: string[][] = [];
     try {
-      records = await resolveTxt(`_urlytics-verification.${domain.hostname}`);
+      records = await resolveTxt(`_urlytix-verification.${domain.hostname}`);
     } catch {
       records = [];
     }
@@ -57,7 +57,7 @@ export class DomainsService {
     if (!values.includes(domain.verificationToken)) {
       return {
         verified: false,
-        record: `_urlytics-verification.${domain.hostname}`,
+        record: `_urlytix-verification.${domain.hostname}`,
         expectedValue: domain.verificationToken,
       };
     }

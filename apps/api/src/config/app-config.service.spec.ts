@@ -8,9 +8,12 @@ describe('AppConfigService', () => {
         NODE_ENV: 'production',
         JWT_SECRET: 'R7fZ8pL2xQ9nV4mK6cB3jH5wT1sY0uA!',
         DATABASE_URL: 'postgresql://user:password@db.example.com:5432/app',
-        SHORT_URL_BASE: 'https://go.example.com/api/r',
+        SHORT_URL_BASE: 'https://go.example.com',
         REDIS_URL: 'rediss://cache.example.com:6379',
         CORS_ORIGINS: 'https://app.example.com',
+        APP_WEB_URL: 'https://app.example.com',
+        SMTP_HOST: 'smtp.example.com',
+        SMTP_FROM: 'Urlytix <noreply@example.com>',
         BILLING_ENABLED: 'false',
         PORT: '4000',
         ...overrides,
@@ -34,19 +37,32 @@ describe('AppConfigService', () => {
   it('builds branded short urls from verified hostnames', () => {
     const config = new AppConfigService(
       new ConfigService({
-        SHORT_URL_BASE: 'http://localhost:4000/api/r',
+        SHORT_URL_BASE: 'http://localhost:4000',
         NODE_ENV: 'production',
       }),
     );
 
     expect(config.buildShortUrl('abc1234')).toBe(
-      'http://localhost:4000/api/r/abc1234',
+      'http://localhost:4000/abc1234',
     );
     expect(config.buildShortUrl('abc1234', 'go.brand.com')).toBe(
-      'https://go.brand.com/api/r/abc1234',
+      'https://go.brand.com/abc1234',
     );
     expect(config.isPlatformHostname('localhost')).toBe(true);
     expect(config.isPlatformHostname('go.brand.com')).toBe(false);
+  });
+
+  it('strips legacy /api/r from SHORT_URL_BASE', () => {
+    const config = new AppConfigService(
+      new ConfigService({
+        SHORT_URL_BASE: 'https://go.example.com/api/r',
+      }),
+    );
+
+    expect(config.shortUrlBase).toBe('https://go.example.com');
+    expect(config.buildShortUrl('abc1234')).toBe(
+      'https://go.example.com/abc1234',
+    );
   });
 
   it('accepts a complete, secure production configuration', () => {
@@ -67,7 +83,7 @@ describe('AppConfigService', () => {
 
   it.each([
     ['DATABASE_URL', 'https://db.example.com'],
-    ['SHORT_URL_BASE', 'http://go.example.com/api/r'],
+    ['SHORT_URL_BASE', 'http://go.example.com'],
     ['REDIS_URL', 'https://cache.example.com'],
     ['CORS_ORIGINS', 'http://app.example.com'],
   ])('rejects an unsafe production %s', (key, value) => {
@@ -91,5 +107,19 @@ describe('AppConfigService', () => {
         CORS_ORIGINS: 'https://app.example.com/callback',
       }).onModuleInit(),
     ).toThrow('CORS_ORIGINS entries must be HTTPS origins');
+  });
+
+  it('supports optional parent cookie domains for split hosts', () => {
+    const config = productionConfig({ COOKIE_DOMAIN: '.example.com' });
+    expect(() => config.onModuleInit()).not.toThrow();
+    expect(config.cookieDomain).toBe('.example.com');
+    expect(config.cookieBaseOptions.domain).toBe('.example.com');
+    expect(config.cookieBaseOptions.secure).toBe(true);
+  });
+
+  it('rejects production cookie domains without a leading dot', () => {
+    expect(() =>
+      productionConfig({ COOKIE_DOMAIN: 'example.com' }).onModuleInit(),
+    ).toThrow(/COOKIE_DOMAIN must start with a leading dot/);
   });
 });

@@ -1,6 +1,6 @@
 'use client';
 
-import type { Workspace, WorkspaceSummary } from '@urlytics/shared';
+import type { Workspace, WorkspaceSummary } from '@urlytix/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { usePathname } from 'next/navigation';
 import {
@@ -15,8 +15,14 @@ import {
 import { workspaceQueryKeys } from '@/hooks/use-workspace-data';
 import { workspacesService } from '@/services/workspaces';
 
-const STORAGE_KEY = 'urlytics_workspace_id';
-const protectedPrefixes = ['/dashboard', '/links', '/analytics', '/settings'];
+const STORAGE_KEY = 'urlytix_workspace_id';
+const protectedPrefixes = [
+  '/dashboard',
+  '/links',
+  '/analytics',
+  '/workspace',
+  '/settings',
+];
 
 type WorkspaceContextValue = {
   workspaces: WorkspaceSummary[];

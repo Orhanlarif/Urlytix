@@ -1,6 +1,6 @@
 import { apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/auth';
-import type { PaginatedResponse } from '@urlytics/shared';
+import type { PaginatedResponse } from '@urlytix/shared';
 import type {
   CreateLinkResponse,
   DeleteLinkResponse,
@@ -55,6 +55,7 @@ export const linksService = {
     id: string,
     input: Partial<
       Pick<LinkItem, 'title' | 'originalUrl' | 'expiresAt'> & {
+        customAlias?: string;
         password?: string | null;
       }
     >,

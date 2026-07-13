@@ -1,6 +1,6 @@
 'use client';
 
-import type { WorkspaceMembership } from '@urlytics/shared';
+import type { WorkspaceMembership } from '@urlytix/shared';
 import { useQuery } from '@tanstack/react-query';
 import { ShieldAlert } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';

@@ -112,3 +112,16 @@ From outside the deployment network, run:
 
 Synthetic credentials live only in the monitoring secret store. Their links and data
 are labeled for retention/cleanup without placing secret values in labels.
+
+## Enabling telemetry in this repository
+
+| Signal | How to enable |
+| --- | --- |
+| Structured logs | Set `NODE_ENV=production`. API emits one JSON object per log line to stdout/stderr. |
+| Request IDs | Automatic `x-request-id` middleware; echoed on error JSON as `requestId`. |
+| Error tracking | Set `SENTRY_DSN` (optional `SENTRY_TRACES_SAMPLE_RATE`, `APP_VERSION`/`GIT_SHA`). |
+| Metrics scrape | Development: `GET /api/metrics`. Production: set `METRICS_TOKEN` and send `Authorization: Bearer …`. |
+| SLO alerts | Wire platform alerts (uptime, burn rate, backup age) to the runbook; not in-process. |
+
+Ship logs from the container runtime to your log backend. Scrape `/api/metrics` from a
+private collector. Configure Sentry alerts for new issue spikes and regressing releases.

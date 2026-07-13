@@ -1,7 +1,7 @@
 import type {
   DailyClicks,
   GroupedStat as SharedGroupedStat,
-} from '@urlytics/shared';
+} from '@urlytix/shared';
 
 export type DailyClick = DailyClicks;
 

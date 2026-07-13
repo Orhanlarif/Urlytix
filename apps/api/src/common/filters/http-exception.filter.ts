@@ -9,6 +9,7 @@ import {
 import type { Request, Response } from 'express';
 import { resolveLocale } from '../i18n/locale';
 import { translateFallback, translateMessage } from '../i18n/messages';
+import { captureException } from '../observability/sentry';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
@@ -52,15 +53,17 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     if (status >= 500) {
       this.logger.error(
-        `${request.method} ${request.url}`,
+        `${request.method} ${request.url} requestId=${request.requestId ?? 'unknown'}`,
         exception instanceof Error ? exception.stack : String(exception),
       );
+      captureException(exception, request.requestId);
     }
 
     response.status(status).json({
       statusCode: status,
       message,
       path: request.url,
+      requestId: request.requestId,
       timestamp: new Date().toISOString(),
     });
   }

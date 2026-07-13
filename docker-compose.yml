@@ -1,26 +1,26 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: urlytics_postgres
+    container_name: urlytix_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: urlytics
-      POSTGRES_PASSWORD: urlytics_password
-      POSTGRES_DB: urlytics_db
+      POSTGRES_USER: urlytix
+      POSTGRES_PASSWORD: urlytix_password
+      POSTGRES_DB: urlytix_db
     ports:
       - "5432:5432"
     volumes:
-      - urlytics_postgres_data:/var/lib/postgresql/data
+      - urlytix_postgres_data:/var/lib/postgresql/data
 
   redis:
     image: redis:7-alpine
-    container_name: urlytics_redis
+    container_name: urlytix_redis
     restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
-      - urlytics_redis_data:/data
+      - urlytix_redis_data:/data
 
 volumes:
-  urlytics_postgres_data:
-  urlytics_redis_data:
+  urlytix_postgres_data:
+  urlytix_redis_data:

@@ -4,7 +4,7 @@ import { App } from 'supertest/types';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { createTestApp } from './create-test-app';
 
-describe('Urlytics API (e2e)', () => {
+describe('Urlytix API (e2e)', () => {
   let app: INestApplication<App>;
   let accessToken: string;
   let userId: string;
@@ -15,8 +15,8 @@ describe('Urlytics API (e2e)', () => {
   let secondWorkspaceId: string;
   let protectedShortCode: string;
 
-  const testEmail = `e2e-${Date.now()}@urlytics.test`;
-  const secondTestEmail = `e2e-second-${Date.now()}@urlytics.test`;
+  const testEmail = `e2e-${Date.now()}@urlytix.test`;
+  const secondTestEmail = `e2e-second-${Date.now()}@urlytix.test`;
   const testPassword = 'Testpass123!';
 
   beforeAll(async () => {
@@ -117,7 +117,10 @@ describe('Urlytics API (e2e)', () => {
       .expect(201)
       .expect((response) => {
         expect(response.body.link.shortCode).toBeDefined();
-        expect(response.body.link.shortUrl).toContain('/api/r/');
+        expect(response.body.link.shortUrl).toMatch(
+          new RegExp(`/${response.body.link.shortCode}$`),
+        );
+        expect(response.body.link.shortUrl).not.toContain('/api/r/');
         linkId = response.body.link.id;
         shortCode = response.body.link.shortCode;
       });
@@ -152,9 +155,26 @@ describe('Urlytics API (e2e)', () => {
       .expect('Location', 'https://example.com/e2e-test');
   });
 
+  it('GET /:shortCode pretty short URL redirects to original URL', () => {
+    return request(app.getHttpServer())
+      .get(`/${shortCode}`)
+      .expect(302)
+      .expect('Location', 'https://example.com/e2e-test');
+  });
+
   it('GET /api/r/unknown-code returns HTML error page', () => {
     return request(app.getHttpServer())
       .get('/api/r/does-not-exist-xyz')
+      .expect(404)
+      .expect('Content-Type', /html/)
+      .expect((response) => {
+        expect(response.text).toContain('Link Bulunamadı');
+      });
+  });
+
+  it('GET /unknown-code pretty short URL returns HTML error page', () => {
+    return request(app.getHttpServer())
+      .get('/does-not-exist-xyz')
       .expect(404)
       .expect('Content-Type', /html/)
       .expect((response) => {

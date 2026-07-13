@@ -10,7 +10,7 @@ This file provides instructions for AI agents (Codex, Cursor, ChatGPT) working o
 
 ## Project Overview
 
-Urlytics is a SaaS link analytics platform similar to Bitly + analytics.
+Urlytix is a SaaS link analytics platform for creating short links and understanding traffic.
 
 ## Tech Stack
 

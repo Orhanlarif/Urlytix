@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   BarChart3,
+  Building2,
   LayoutDashboard,
   Link2,
   LogOut,
@@ -35,6 +36,7 @@ export function AppShell({ children }: AppShellProps) {
     { label: t.nav.dashboard, href: '/dashboard', icon: LayoutDashboard },
     { label: t.nav.links, href: '/links', icon: Link2 },
     { label: t.nav.analytics, href: '/analytics', icon: BarChart3 },
+    { label: t.nav.workspace, href: '/workspace', icon: Building2 },
     { label: t.nav.settings, href: '/settings', icon: Settings },
   ];
 
@@ -47,7 +49,7 @@ export function AppShell({ children }: AppShellProps) {
   }
 
   const displayName = user?.name?.trim() || user?.email || t.nav.account;
-  const displayEmail = user?.email ?? 'Urlytics';
+  const displayEmail = user?.email ?? 'Urlytix';
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
@@ -135,14 +137,14 @@ export function AppShell({ children }: AppShellProps) {
 
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--background)]/90 backdrop-blur lg:hidden">
-            <div className="flex items-center justify-between gap-3 px-4 py-4">
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
               <Logo href="/dashboard" size="sm" />
 
               <div className="flex items-center gap-2">
                 <Link
                   href="/links"
                   aria-label={t.nav.quickCreateLink}
-                  className="grid h-9 w-9 place-items-center rounded-xl border border-[var(--border)] text-[var(--muted-foreground)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                  className="grid h-10 w-10 place-items-center rounded-xl border border-[var(--border)] text-[var(--muted-foreground)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
                 >
                   <Plus className="h-4 w-4" />
                 </Link>
@@ -171,11 +173,21 @@ export function AppShell({ children }: AppShellProps) {
             <div className="px-4 pb-3">
               <WorkspaceSwitcher compact />
             </div>
+          </header>
 
-            <nav
-              aria-label={t.common.mainNavigation}
-              className="grid grid-cols-4 gap-1 px-3 pb-3"
-            >
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className="flex-1 px-4 py-7 pb-24 sm:px-6 lg:px-8 lg:py-9 lg:pb-9"
+          >
+            <div className="mx-auto max-w-7xl">{children}</div>
+          </main>
+
+          <nav
+            aria-label={t.common.mainNavigation}
+            className="fixed inset-x-0 bottom-0 z-20 border-t border-[var(--border)] bg-[var(--background)]/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur lg:hidden"
+          >
+            <div className="grid grid-cols-5 gap-1">
               {navItems.map((item) => {
                 const active = isActive(item.href);
                 const Icon = item.icon;
@@ -186,27 +198,19 @@ export function AppShell({ children }: AppShellProps) {
                     href={item.href}
                     aria-current={active ? 'page' : undefined}
                     className={cn(
-                      'flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[11px] font-medium transition',
+                      'flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[11px] font-medium transition',
                       active
-                        ? 'border border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent)]'
-                        : 'border border-[var(--border)] text-[var(--muted-foreground)]',
+                        ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
+                        : 'text-[var(--muted-foreground)]',
                     )}
                   >
                     <Icon className="h-4 w-4" />
-                    {item.label}
+                    <span className="truncate">{item.label}</span>
                   </Link>
                 );
               })}
-            </nav>
-          </header>
-
-          <main
-            id="main-content"
-            tabIndex={-1}
-            className="flex-1 px-4 py-7 sm:px-6 lg:px-8 lg:py-9"
-          >
-            <div className="mx-auto max-w-7xl">{children}</div>
-          </main>
+            </div>
+          </nav>
         </div>
       </div>
     </div>

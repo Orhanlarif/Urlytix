@@ -21,7 +21,7 @@ import { ErrorBanner } from '@/components/ui/error-banner';
 import { MetricCard } from '@/components/ui/metric-card';
 import { PageHeader } from '@/components/ui/page-header';
 import { PageLoading } from '@/components/ui/page-loading';
-import { Select } from '@/components/ui/select';
+import { MenuSelect } from '@/components/ui/menu-select';
 import { Tabs } from '@/components/ui/tabs';
 import { useWorkspace } from '@/contexts/workspace-context';
 import { useWorkspaceOverview } from '@/hooks/use-workspace-data';
@@ -29,7 +29,7 @@ import { useLanguage } from '@/i18n/language-provider';
 import { formatDateTime, formatNumber } from '@/lib/format';
 import type { GroupedStat, RecentClick } from '@/types/analytics';
 
-const RANGE_OPTIONS = [7, 14, 30, 90];
+const RANGE_OPTIONS = ['7', '14', '30', '90'] as const;
 
 function normalizeReferrer(referrer: string | null): string | null {
   if (!referrer) return null;
@@ -79,8 +79,10 @@ function BreakdownBars({
         return (
           <div key={item.name}>
             <div className="flex items-center justify-between gap-4 text-sm">
-              <span className="text-[var(--foreground)]">{item.name}</span>
-              <span className="text-[var(--muted-foreground)]">
+              <span className="min-w-0 flex-1 truncate text-[var(--foreground)]">
+                {item.name}
+              </span>
+              <span className="shrink-0 text-[var(--muted-foreground)]">
                 {item.count} · {percent}%
               </span>
             </div>
@@ -197,19 +199,19 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          <div className="flex w-full gap-2 sm:w-auto">
-            <Select
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <MenuSelect
               aria-label={t.linkDetail.last14Days}
-              value={days}
-              onChange={(event) => setDays(Number(event.target.value))}
-              className="min-w-36"
-            >
-              {RANGE_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {locale === 'tr' ? `Son ${option} gün` : `Last ${option} days`}
-                </option>
-              ))}
-            </Select>
+              value={String(days) as (typeof RANGE_OPTIONS)[number]}
+              onChange={(value) => setDays(Number(value))}
+              className="min-w-40 flex-1 sm:flex-none"
+              align="right"
+              options={RANGE_OPTIONS.map((option) => ({
+                value: option,
+                label:
+                  locale === 'tr' ? `Son ${option} gün` : `Last ${option} days`,
+              }))}
+            />
             <Button
               variant="secondary"
               onClick={() => void refetch()}

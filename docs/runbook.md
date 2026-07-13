@@ -45,7 +45,7 @@ workspace backfill, verifies that no orphan link remains, then checks health,
 default-workspace provisioning, link creation, a controlled redirect, and analytics:
 
 ```sh
-STAGING_CONFIRM=urlytics-staging \
+STAGING_CONFIRM=urlytix-staging \
 STAGING_API_URL=https://staging-api.example.invalid/api \
 DATABASE_URL=postgresql://replace-from-secret-store \
 pnpm release:staging:gate
@@ -78,7 +78,7 @@ Use provider-native snapshots/PITR when available. For the Compose deployment, c
 a compressed logical backup in the mounted `/backups` volume:
 
 ```sh
-backup="urlytics-$(date -u +%Y%m%dT%H%M%SZ).dump"
+backup="urlytix-$(date -u +%Y%m%dT%H%M%SZ).dump"
 docker compose --env-file infra/.env -f infra/compose.yaml exec -T postgres \
   sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' \
   > "infra/$backup"
@@ -90,6 +90,17 @@ commit it or leave it on an operator laptop. Record timestamp, database, applica
 SHA, size, and checksum. Retain daily backups for 7 days, weekly for 5 weeks, and
 monthly for 12 months unless legal/privacy policy requires less. Alert on missed
 backups and test a restore quarterly.
+
+Local automation of the dump→restore path (throwaway database, then drop):
+
+```sh
+pnpm db:up
+pnpm ops:restore-drill
+```
+
+Preserve non-secret drill output (table count, checksum, timestamp) as quarterly
+evidence. Staging/production restores still follow the section below and must not
+overwrite the live database during a test.
 
 ## Restore drill or disaster recovery
 

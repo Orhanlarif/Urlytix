@@ -1,7 +1,7 @@
 import { logout } from '@/lib/auth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
-const LOCALE_KEY = 'urlytics-locale';
+const LOCALE_KEY = 'urlytix-locale';
 
 type ApiOptions = {
   method?: string;

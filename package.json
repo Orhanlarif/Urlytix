@@ -1,5 +1,5 @@
 {
-  "name": "urlytics-saas",
+  "name": "urlytix-saas",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -11,7 +11,7 @@
     "db:logs": "docker compose logs -f",
     "db:migrate": "pnpm --filter api exec prisma migrate dev",
     "db:migrate:deploy": "pnpm --filter api exec prisma migrate deploy",
-    "lint": "pnpm --filter @urlytics/shared lint && pnpm --filter api lint:check && pnpm --filter web lint",
+    "lint": "pnpm --filter @urlytix/shared lint && pnpm --filter api lint:check && pnpm --filter web lint",
     "test": "pnpm --filter api test && pnpm --filter web test",
     "test:api:e2e": "pnpm --filter api test:e2e",
     "test:web:e2e": "pnpm --filter web test:e2e",
@@ -20,7 +20,9 @@
     "db:validate": "pnpm --filter api exec prisma validate",
     "release:staging:gate": "node scripts/staging-release-gate.mjs",
     "release:staging:smoke": "node scripts/staging-release-gate.mjs --smoke-only",
+    "ops:restore-drill": "node scripts/ops-restore-drill.mjs",
+    "load:test": "node scripts/load-test.mjs",
     "build": "pnpm prisma:generate && pnpm -r build",
-    "ci": "pnpm prisma:generate && pnpm db:validate && pnpm lint && pnpm test && pnpm test:api:e2e && pnpm build && pnpm test:web:e2e"
+    "ci": "pnpm prisma:generate && pnpm db:validate && pnpm --filter api exec prisma migrate status && pnpm lint && pnpm test && pnpm test:api:e2e && pnpm build && pnpm test:web:e2e"
   }
 }

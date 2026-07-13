@@ -20,7 +20,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   return (
     <div>
       {label && (
-        <label htmlFor={resolvedInputId} className="text-sm font-medium text-[var(--muted)]">
+        <label
+          htmlFor={resolvedInputId}
+          className="mb-2 block text-sm font-medium text-[var(--muted)]"
+        >
           {label}
         </label>
       )}
@@ -31,7 +34,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         aria-describedby={error ? errorId : hint ? hintId : undefined}
         aria-invalid={Boolean(error)}
         className={cn(
-          'mt-2 min-h-[var(--control-height)] w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted-foreground)]/70 focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 disabled:cursor-not-allowed disabled:bg-[var(--surface-raised)] disabled:text-[var(--muted-foreground)]',
+          'min-h-[var(--control-height)] w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted-foreground)]/70 focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 disabled:cursor-not-allowed disabled:bg-[var(--surface-raised)] disabled:text-[var(--muted-foreground)]',
           error && 'border-[var(--danger)]/50 focus:border-[var(--danger)] focus:ring-[var(--danger)]/20',
           className,
         )}

@@ -1,4 +1,4 @@
-import type { DomainSummary, DomainVerifyResponse } from '@urlytics/shared';
+import type { DomainSummary, DomainVerifyResponse } from '@urlytix/shared';
 import { apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/auth';
 

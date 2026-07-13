@@ -2,7 +2,13 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { TOKEN_COOKIE } from '@/lib/auth';
 
-const protectedPrefixes = ['/dashboard', '/links', '/analytics', '/settings'];
+const protectedPrefixes = [
+  '/dashboard',
+  '/links',
+  '/analytics',
+  '/workspace',
+  '/settings',
+];
 const authPaths = ['/login', '/register'];
 
 function isProtectedPath(pathname: string) {
@@ -34,6 +40,7 @@ export const config = {
     '/dashboard/:path*',
     '/links/:path*',
     '/analytics/:path*',
+    '/workspace/:path*',
     '/settings/:path*',
     '/login',
     '/register',
