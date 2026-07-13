@@ -425,7 +425,7 @@ export const en: Translation = {
     topLinks: 'Top links',
     topLinksDesc: 'Highest-traffic links in this workspace.',
     recentClicks: 'Recent clicks',
-    recentClicksDesc: 'Latest visits across all links.',
+    recentClicksDesc: 'Latest visits in the selected date range.',
     noData: 'No traffic yet',
     noDataDesc: 'Data will appear here after you share your first link.',
     noLinks: 'No links yet',
@@ -439,7 +439,7 @@ export const en: Translation = {
     breakdownTab: 'Breakdown',
     deviceBreakdown: 'Device breakdown',
     referrerBreakdown: 'Referrer breakdown',
-    breakdownHint: 'Based on the most recent visits in this workspace.',
+    breakdownHint: 'Based on clicks in the selected date range.',
     breakdownEmpty: 'Not enough recent visits to build a breakdown yet.',
   },
   links: {
@@ -481,6 +481,8 @@ export const en: Translation = {
     expires: 'Expires',
     deactivate: 'Deactivate',
     activate: 'Activate',
+    deactivateConfirm:
+      'Deactivate "{name}"? Visitors will no longer be redirected until you reactivate it.',
     deleteConfirm:
       'Are you sure you want to delete "{name}"? This action cannot be undone.',
     created: 'Link created successfully.',

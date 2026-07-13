@@ -7,6 +7,8 @@ import {
   Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { resolveLocale } from '../i18n/locale';
+import { translateFallback, translateMessage } from '../i18n/messages';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
@@ -16,6 +18,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
+    const locale = resolveLocale(
+      typeof request.headers['accept-language'] === 'string'
+        ? request.headers['accept-language']
+        : undefined,
+    );
 
     const status =
       exception instanceof HttpException
@@ -25,10 +32,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const exceptionResponse =
       exception instanceof HttpException ? exception.getResponse() : null;
 
-    let message = 'Bir hata oluştu.';
+    let message = translateFallback(locale);
 
     if (typeof exceptionResponse === 'string') {
-      message = exceptionResponse;
+      message = translateMessage(exceptionResponse, locale);
     } else if (
       exceptionResponse &&
       typeof exceptionResponse === 'object' &&
@@ -37,7 +44,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       const rawMessage = (exceptionResponse as { message: string | string[] })
         .message;
 
-      message = Array.isArray(rawMessage) ? rawMessage.join(', ') : rawMessage;
+      const joined = Array.isArray(rawMessage)
+        ? rawMessage.join(', ')
+        : rawMessage;
+      message = translateMessage(joined, locale);
     }
 
     if (status >= 500) {

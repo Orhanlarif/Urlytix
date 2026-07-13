@@ -32,7 +32,11 @@ describe('apiRequest authentication recovery', () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       'http://localhost:4000/api/auth/refresh',
-      { method: 'POST', credentials: 'include' },
+      {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Accept-Language': 'en' },
+      },
     );
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(logoutMock).not.toHaveBeenCalled();
@@ -48,5 +52,22 @@ describe('apiRequest authentication recovery', () => {
 
     await expect(apiRequest('/links')).rejects.toBeInstanceOf(UnauthorizedError);
     expect(logoutMock).toHaveBeenCalledWith('/login?expired=1');
+  });
+
+  it('does not force-logout on failed login credentials', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ message: 'Email veya şifre hatalı.' }), {
+        status: 401,
+      }),
+    );
+    const { apiRequest, UnauthorizedError } = await import('./api');
+
+    await expect(
+      apiRequest('/auth/login', {
+        method: 'POST',
+        body: { email: 'a@b.com', password: 'wrong' },
+      }),
+    ).rejects.toBeInstanceOf(UnauthorizedError);
+    expect(logoutMock).not.toHaveBeenCalled();
   });
 });

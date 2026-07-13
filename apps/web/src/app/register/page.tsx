@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { FormEvent, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { FormEvent, Suspense, useState } from 'react';
 import { QrCode, Rocket, ShieldCheck, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { LanguageToggle } from '@/components/ui/language-toggle';
 import { Logo } from '@/components/ui/logo';
 import { useLanguage } from '@/i18n/language-provider';
+import { getSafeRedirectPath } from '@/lib/safe-redirect';
 import { authService } from '@/services/auth';
 
 function BrandPanel() {
@@ -65,9 +66,11 @@ function BrandPanel() {
   );
 }
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { t } = useLanguage();
+  const redirectTo = getSafeRedirectPath(searchParams.get('redirect'));
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -86,7 +89,7 @@ export default function RegisterPage() {
         email,
         password,
       });
-      router.push('/dashboard');
+      router.push(redirectTo);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : t.auth.registerFailed);
@@ -161,7 +164,14 @@ export default function RegisterPage() {
 
             <p className="mt-6 text-center text-sm text-[var(--muted-foreground)]">
               {t.auth.hasAccount}{' '}
-              <Link href="/login" className="text-[var(--accent)] hover:underline">
+              <Link
+                href={
+                  redirectTo !== '/dashboard'
+                    ? `/login?redirect=${encodeURIComponent(redirectTo)}`
+                    : '/login'
+                }
+                className="text-[var(--accent)] hover:underline"
+              >
                 {t.auth.loginLink}
               </Link>
             </p>
@@ -169,5 +179,21 @@ export default function RegisterPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function RegisterPage() {
+  const { t } = useLanguage();
+
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-[var(--background)] text-[var(--foreground)]">
+          <p className="text-[var(--muted-foreground)]">{t.common.loading}</p>
+        </main>
+      }
+    >
+      <RegisterForm />
+    </Suspense>
   );
 }

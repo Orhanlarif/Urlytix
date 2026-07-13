@@ -450,6 +450,7 @@ export type Translation = {
     expires: string;
     deactivate: string;
     activate: string;
+    deactivateConfirm: string;
     deleteConfirm: string;
     created: string;
     deactivated: string;

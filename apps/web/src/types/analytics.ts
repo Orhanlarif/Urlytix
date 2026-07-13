@@ -40,6 +40,8 @@ export type DashboardOverview = {
   dailyClicks: DailyClick[];
   topLinks: TopLink[];
   recentClicks: RecentClick[];
+  deviceStats?: GroupedStat[];
+  referrerStats?: GroupedStat[];
 };
 
 export type GroupedStat = SharedGroupedStat;
@@ -78,6 +80,10 @@ export type LinkAnalytics = {
   browserStats: GroupedStat[];
   osStats: GroupedStat[];
   referrerStats: GroupedStat[];
+  geoStats?: {
+    countries: GroupedStat[];
+    cities: GroupedStat[];
+  };
   utmSourceStats: GroupedStat[];
   botStats: {
     botClicks: number;

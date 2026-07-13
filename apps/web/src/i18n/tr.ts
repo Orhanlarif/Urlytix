@@ -427,7 +427,7 @@ export const tr: Translation = {
     topLinks: 'En iyi linkler',
     topLinksDesc: 'Bu workspace’te en çok trafik alan linkler.',
     recentClicks: 'Son tıklamalar',
-    recentClicksDesc: 'Tüm linklerdeki son ziyaretler.',
+    recentClicksDesc: 'Seçilen tarih aralığındaki son ziyaretler.',
     noData: 'Henüz trafik yok',
     noDataDesc: 'İlk linkini paylaşınca veriler burada görünecek.',
     noLinks: 'Henüz link yok',
@@ -441,7 +441,7 @@ export const tr: Translation = {
     breakdownTab: 'Kırılım',
     deviceBreakdown: 'Cihaz dağılımı',
     referrerBreakdown: 'Referrer dağılımı',
-    breakdownHint: 'Bu workspace’teki en son ziyaretlere göre hesaplanır.',
+    breakdownHint: 'Seçilen tarih aralığındaki tıklamalara göre hesaplanır.',
     breakdownEmpty: 'Kırılım oluşturmak için henüz yeterli son ziyaret yok.',
   },
   links: {
@@ -483,6 +483,8 @@ export const tr: Translation = {
     expires: 'Bitiş',
     deactivate: 'Pasifleştir',
     activate: 'Aktif Et',
+    deactivateConfirm:
+      '"{name}" linkini pasifleştirmek istediğine emin misin? Yeniden aktif edene kadar ziyaretçiler yönlendirilmez.',
     deleteConfirm: '"{name}" linkini silmek istediğine emin misin? Bu işlem geri alınamaz.',
     created: 'Link başarıyla oluşturuldu.',
     deactivated: 'Link pasifleştirildi.',

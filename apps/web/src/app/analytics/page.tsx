@@ -110,27 +110,61 @@ export default function AnalyticsPage() {
   const rangeLabel =
     locale === 'tr' ? `Son ${days} gün` : `Last ${days} days`;
 
-  const deviceBreakdown = useMemo(
-    () =>
-      buildBreakdown(
-        data?.recentClicks ?? [],
-        (click) => click.deviceType,
-        t.common.unknown,
-      ),
-    [data, t.common.unknown],
-  );
+  const deviceBreakdown = useMemo(() => {
+    if (data?.deviceStats && data.deviceStats.length > 0) {
+      return data.deviceStats.map((item) => ({
+        name: item.name === 'Unknown' ? t.common.unknown : item.name,
+        count: item.count,
+      }));
+    }
+    return buildBreakdown(
+      data?.recentClicks ?? [],
+      (click) => click.deviceType,
+      t.common.unknown,
+    );
+  }, [data, t.common.unknown]);
 
-  const referrerBreakdown = useMemo(
-    () =>
-      buildBreakdown(
-        data?.recentClicks ?? [],
-        (click) => normalizeReferrer(click.referrer),
-        t.common.direct,
-      ),
-    [data, t.common.direct],
-  );
+  const referrerBreakdown = useMemo(() => {
+    if (data?.referrerStats && data.referrerStats.length > 0) {
+      return data.referrerStats.map((item) => ({
+        name:
+          !item.name || item.name === 'Unknown' || item.name === 'Direct'
+            ? t.common.direct
+            : item.name,
+        count: item.count,
+      }));
+    }
+    return buildBreakdown(
+      data?.recentClicks ?? [],
+      (click) => normalizeReferrer(click.referrer),
+      t.common.direct,
+    );
+  }, [data, t.common.direct]);
 
-  if (workspaceLoading || (isLoading && !data) || !currentWorkspace) {
+  if (workspaceLoading) {
+    return <PageLoading showChart showPanels />;
+  }
+
+  if (!currentWorkspace) {
+    return (
+      <AppShell>
+        <PageHeader
+          badge={t.analytics.badge}
+          title={t.analytics.title}
+          description={t.analytics.description}
+        />
+        <div className="mt-8">
+          <EmptyState
+            icon={Globe2}
+            title={t.workspace.createTitle}
+            description={t.workspace.createDescription}
+          />
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (isLoading && !data) {
     return <PageLoading showChart showPanels />;
   }
 

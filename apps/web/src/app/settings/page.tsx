@@ -141,7 +141,9 @@ function GeneralSettings() {
         timezone,
         locale,
       });
-      queryClient.setQueryData(CURRENT_USER_QUERY_KEY, updated);
+      queryClient.setQueryData(CURRENT_USER_QUERY_KEY, (current) =>
+        current ? { ...current, ...updated } : updated,
+      );
       showToast(t.settings.profileSaved);
     } catch {
       showToast(t.settings.profileSaveFailed, 'error');
@@ -869,7 +871,7 @@ function DomainSettings() {
                     )}
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
-                    {!verified && (
+                    {canManage && !verified && (
                       <Button
                         size="sm"
                         onClick={() => void verifyDomain(domain)}

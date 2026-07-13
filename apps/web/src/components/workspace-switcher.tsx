@@ -93,7 +93,8 @@ export function WorkspaceSwitcher({ compact = false }: { compact?: boolean }) {
 
   const hasWorkspaces = workspaces.length > 0;
   // Desktop owns the automatic empty-state modal; compact mobile switchers can
-  // still open it explicitly when no workspace exists.
+  // still open it explicitly when no workspace exists. AppShell always mounts
+  // the desktop switcher (hidden on small screens), so the modal still opens.
   const modalOpen =
     createOpen || (!compact && !isLoading && !error && !hasWorkspaces);
 

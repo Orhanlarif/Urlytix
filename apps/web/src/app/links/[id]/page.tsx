@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
-import { FormEvent, useEffect, useState } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { FormEvent, Suspense, useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Bot,
+  Building2,
   Link2,
   MousePointerClick,
   QrCode,
@@ -18,11 +19,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
 import { useConfirm } from '@/components/ui/confirm-dialog';
+import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorBanner } from '@/components/ui/error-banner';
 import { Input } from '@/components/ui/input';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { MetricCard } from '@/components/ui/metric-card';
 import { Modal } from '@/components/ui/modal';
+import { PageHeader } from '@/components/ui/page-header';
 import { Tabs } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/toast';
 import { useWorkspace } from '@/contexts/workspace-context';
@@ -47,8 +50,17 @@ import type {
 } from '@/types/links';
 
 export default function LinkDetailPage() {
+  return (
+    <Suspense fallback={<LoadingScreen />}>
+      <LinkDetailPageContent />
+    </Suspense>
+  );
+}
+
+function LinkDetailPageContent() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const linkId = params.id;
   const { t, locale } = useLanguage();
   const { showToast } = useToast();
@@ -59,6 +71,8 @@ export default function LinkDetailPage() {
     days: 14,
   });
   const analytics = analyticsQuery.data;
+  const defaultTab =
+    searchParams.get('tab') === 'settings' ? 'settings' : 'overview';
 
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
@@ -136,7 +150,8 @@ export default function LinkDetailPage() {
 
   function handleOpenShare() {
     setIsShareOpen(true);
-    if (!qrDataUrl) {
+    if (!qrDataUrl && !isQrLoading) {
+      setIsQrLoading(true);
       void handleGenerateQr();
     }
   }
@@ -191,6 +206,18 @@ export default function LinkDetailPage() {
     const nextStatus: LinkStatus =
       analytics.link.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE';
 
+    if (nextStatus === 'DISABLED') {
+      const confirmed = await confirm({
+        title: t.links.deactivate,
+        description: interpolate(t.links.deactivateConfirm, {
+          name: analytics.link.title ?? analytics.link.shortCode,
+        }),
+        confirmLabel: t.links.deactivate,
+        variant: 'danger',
+      });
+      if (!confirmed) return;
+    }
+
     setError('');
     setIsMutating(true);
 
@@ -234,7 +261,12 @@ export default function LinkDetailPage() {
 
     try {
       await linksService.remove(analytics.link.id);
-
+      if (currentWorkspace) {
+        await queryClient.invalidateQueries({
+          queryKey: workspaceQueryKeys.workspace(currentWorkspace.id),
+        });
+      }
+      showToast(t.links.deleted);
       router.push('/links');
     } catch (err) {
       setError(err instanceof Error ? err.message : t.linkDetail.deleteFailed);
@@ -243,11 +275,30 @@ export default function LinkDetailPage() {
     }
   }
 
-  if (
-    workspaceLoading ||
-    (analyticsQuery.isLoading && !analytics) ||
-    !currentWorkspace
-  ) {
+  if (workspaceLoading) {
+    return <LoadingScreen text={t.linkDetail.loading} />;
+  }
+
+  if (!currentWorkspace) {
+    return (
+      <AppShell>
+        <PageHeader
+          badge={t.linkDetail.badge}
+          title={t.linkDetail.badge}
+          description={t.workspace.createDescription}
+        />
+        <div className="mt-8">
+          <EmptyState
+            icon={Building2}
+            title={t.workspace.createTitle}
+            description={t.workspace.createDescription}
+          />
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (analyticsQuery.isLoading && !analytics) {
     return <LoadingScreen text={t.linkDetail.loading} />;
   }
 
@@ -284,13 +335,21 @@ export default function LinkDetailPage() {
     (total, item) => total + item.clicks,
     0,
   );
-  const geoStats = Object.entries(
-    analytics.recentClicks.reduce<Record<string, number>>((groups, click) => {
-      const location = [click.city, click.country].filter(Boolean).join(', ') || t.common.unknown;
-      groups[location] = (groups[location] ?? 0) + 1;
-      return groups;
-    }, {}),
-  ).map(([name, count]) => ({ name, count }));
+  const geoStats =
+    analytics.geoStats?.countries?.length
+      ? analytics.geoStats.countries
+      : Object.entries(
+          analytics.recentClicks.reduce<Record<string, number>>(
+            (groups, click) => {
+              const location =
+                [click.city, click.country].filter(Boolean).join(', ') ||
+                t.common.unknown;
+              groups[location] = (groups[location] ?? 0) + 1;
+              return groups;
+            },
+            {},
+          ),
+        ).map(([name, count]) => ({ name, count }));
 
   const overviewContent = (
     <div className="space-y-6">
@@ -683,6 +742,7 @@ export default function LinkDetailPage() {
       <div className="mt-8">
         <Tabs
           variant="pill"
+          defaultTab={defaultTab}
           tabs={[
             { id: 'overview', label: t.linkDetail.overview, content: overviewContent },
             { id: 'traffic', label: t.linkDetail.traffic, content: trafficContent },

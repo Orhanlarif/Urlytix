@@ -66,7 +66,7 @@ Known constraints:
 
 ### P0 — core product excellence
 
-- [ ] Audit all existing user flows end to end: registration, login, dashboard,
+- [x] Audit all existing user flows end to end: registration, login, dashboard,
   link creation, link management, redirect, analytics, settings, and workspace
   switching
 - [ ] Fix broken, confusing, or inconsistent behavior before adding any new feature
@@ -97,8 +97,22 @@ Known constraints:
   and analytics displays
 - [x] Improve dashboard/analytics data presentation with in-shell loading,
   empty-chart guidance, and richer analytics breakdowns
-- [ ] Clean generated `apps/api/dist` artifacts from the working tree and protect
+- [x] Clean generated `apps/api/dist` artifacts from the working tree and protect
   source control from build output noise
+- [x] Stop treating failed login/2FA 401s as session expiry force-logout
+- [x] Sanitize post-login/register `redirect` query to same-origin paths only
+- [x] Normalize auth emails case-insensitively; keep `totpEnabled` on profile update
+- [x] Reactivate links when expiration is cleared; sync expired status on list/unlock
+- [x] Avoid infinite shell-less loading when the user has no workspace
+- [x] Confirm before deactivating links; copy short URL after create; invalidate
+  caches after detail delete; open expiry edit via `?tab=settings`
+- [x] Hide domain Verify for non-admin roles; show reset-password missing-token state
+- [x] Localize API error messages to the active UI language (EN/TR)
+- [x] Align analytics breakdowns (device/referrer/geo/top links) with the selected
+  date range instead of recent-click samples
+- [x] Improve public redirect error/password pages (locale + web app home CTA)
+- [ ] Finish 2FA backup-code save/copy UX and password-rule hints on reset/change forms
+- [ ] Document or configure cookie Domain for split web/API production hosts
 
 ### P1 — UX and visual polish
 

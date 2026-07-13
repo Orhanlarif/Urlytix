@@ -128,12 +128,12 @@ export class LinksService {
           ? null
           : this.parseFutureExpiration(updateLinkDto.expiresAt);
 
-      if (
-        data.expiresAt &&
-        link.status === 'EXPIRED' &&
-        data.expiresAt > new Date()
-      ) {
-        data.status = 'ACTIVE';
+      if (link.status === 'EXPIRED') {
+        if (data.expiresAt === null) {
+          data.status = 'ACTIVE';
+        } else if (data.expiresAt > new Date()) {
+          data.status = 'ACTIVE';
+        }
       }
     }
 
@@ -221,8 +221,26 @@ export class LinksService {
       this.prisma.link.count({ where }),
       this.resolveBrandHostname(query.workspaceId),
     ]);
+
+    const expiredIds = links
+      .filter((link) => link.status === 'ACTIVE' && this.isExpired(link))
+      .map((link) => link.id);
+    if (expiredIds.length > 0) {
+      await this.prisma.link.updateMany({
+        where: { id: { in: expiredIds } },
+        data: { status: 'EXPIRED' },
+      });
+    }
+
     const items = links.map((link) =>
-      this.formatLink(link, link._count.clickEvents, brandHostname),
+      this.formatLink(
+        {
+          ...link,
+          status: expiredIds.includes(link.id) ? 'EXPIRED' : link.status,
+        },
+        link._count.clickEvents,
+        brandHostname,
+      ),
     );
 
     return {
@@ -436,6 +454,13 @@ export class LinksService {
     }
 
     if (this.isExpired(link)) {
+      if (link.status === 'ACTIVE') {
+        await this.prisma.link.update({
+          where: { id: link.id },
+          data: { status: 'EXPIRED' },
+        });
+      }
+
       throw new LinkRedirectException(
         'expired',
         'Bu linkin süresi dolmuş.',

@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
+import { resolveLocale } from '../common/i18n/locale';
 import { AppConfigService } from '../config/app-config.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateLinkDto } from './dto/create-link.dto';
@@ -94,7 +95,7 @@ export class LinksController {
       this.applyVisitorCookie(res, result);
       return res.redirect(result.originalUrl);
     } catch (error) {
-      return this.handleRedirectError(error, shortCode, res);
+      return this.handleRedirectError(error, shortCode, req, res);
     }
   }
 
@@ -124,7 +125,7 @@ export class LinksController {
       }
       return res.redirect(result.originalUrl);
     } catch (error) {
-      return this.handleRedirectError(error, shortCode, res);
+      return this.handleRedirectError(error, shortCode, req, res);
     }
   }
 
@@ -144,8 +145,19 @@ export class LinksController {
   private handleRedirectError(
     error: unknown,
     shortCode: string,
+    req: Request,
     res: Response,
   ) {
+    const locale = resolveLocale(
+      typeof req.headers['accept-language'] === 'string'
+        ? req.headers['accept-language']
+        : undefined,
+    );
+    const pageOptions = {
+      locale,
+      homeUrl: this.appConfig.appWebUrl,
+    };
+
     if (error instanceof LinkRedirectException) {
       if (
         error.code === 'password_required' ||
@@ -158,6 +170,7 @@ export class LinksController {
             renderPasswordGatePage(
               shortCode,
               error.code === 'password_invalid' ? error.message : undefined,
+              pageOptions,
             ),
           );
       }
@@ -165,7 +178,7 @@ export class LinksController {
       return res
         .status(error.statusCode)
         .type('html')
-        .send(renderRedirectErrorPage(error.code, error.message));
+        .send(renderRedirectErrorPage(error.code, error.message, pageOptions));
     }
 
     throw error;

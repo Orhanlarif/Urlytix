@@ -60,38 +60,58 @@ function ResetPasswordForm() {
         <p className="mt-2 text-sm text-[var(--muted-foreground)]">
           {t.auth.resetDesc}
         </p>
-        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-          <Input
-            label={t.auth.newPassword}
-            type="password"
-            required
-            autoComplete="new-password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            hint={t.auth.passwordHint}
-          />
-          <Input
-            label={t.auth.confirmPassword}
-            type="password"
-            required
-            autoComplete="new-password"
-            value={confirmPassword}
-            onChange={(event) => setConfirmPassword(event.target.value)}
-          />
-          {error && (
+        {!token ? (
+          <div className="mt-8 space-y-4">
             <div className="rounded-xl border border-[var(--danger-border)] bg-[var(--danger-muted)] px-4 py-3 text-sm text-[var(--danger)]">
-              {error}
+              {t.auth.resetMissingToken}
             </div>
-          )}
-          <Button type="submit" disabled={isLoading || !token} fullWidth size="lg">
-            {isLoading ? t.auth.resetLoading : t.auth.resetButton}
-          </Button>
-        </form>
-        <p className="mt-6 text-center text-sm text-[var(--muted-foreground)]">
-          <Link href="/login" className="text-[var(--accent)] hover:underline">
-            {t.auth.backToLogin}
-          </Link>
-        </p>
+            <Link href="/forgot-password">
+              <Button fullWidth size="lg">
+                {t.auth.forgotButton}
+              </Button>
+            </Link>
+            <p className="text-center text-sm text-[var(--muted-foreground)]">
+              <Link href="/login" className="text-[var(--accent)] hover:underline">
+                {t.auth.backToLogin}
+              </Link>
+            </p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+            <Input
+              label={t.auth.newPassword}
+              type="password"
+              required
+              minLength={12}
+              autoComplete="new-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              hint={t.auth.passwordHint}
+            />
+            <Input
+              label={t.auth.confirmPassword}
+              type="password"
+              required
+              minLength={12}
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+            />
+            {error && (
+              <div className="rounded-xl border border-[var(--danger-border)] bg-[var(--danger-muted)] px-4 py-3 text-sm text-[var(--danger)]">
+                {error}
+              </div>
+            )}
+            <Button type="submit" disabled={isLoading} fullWidth size="lg">
+              {isLoading ? t.auth.resetLoading : t.auth.resetButton}
+            </Button>
+            <p className="text-center text-sm text-[var(--muted-foreground)]">
+              <Link href="/login" className="text-[var(--accent)] hover:underline">
+                {t.auth.backToLogin}
+              </Link>
+            </p>
+          </form>
+        )}
       </Card>
     </main>
   );

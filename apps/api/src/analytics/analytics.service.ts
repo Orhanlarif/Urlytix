@@ -31,14 +31,24 @@ export class AnalyticsService {
     const startOfToday = this.getStartOfToday();
     const range = this.resolveRange(query);
     const linkScope = { workspaceId };
+    const rangeWhere = {
+      link: linkScope,
+      clickedAt: {
+        gte: range.from,
+        lte: range.to,
+      },
+    };
 
     const [
       totalLinks,
       totalClicks,
       clicksToday,
-      topLinks,
+      topLinkGroups,
       recentClicks,
+      deviceGroups,
+      referrerGroups,
       brandHostname,
+      rangeClicks,
     ] = await Promise.all([
       this.prisma.link.count({
         where: linkScope,
@@ -59,32 +69,20 @@ export class AnalyticsService {
         },
       }),
 
-      this.prisma.link.findMany({
-        where: linkScope,
+      this.prisma.clickEvent.groupBy({
+        by: ['linkId'],
+        where: rangeWhere,
+        _count: { _all: true },
         orderBy: {
-          clickEvents: {
-            _count: 'desc',
+          _count: {
+            linkId: 'desc',
           },
         },
         take: 5,
-        select: {
-          id: true,
-          title: true,
-          originalUrl: true,
-          shortCode: true,
-          createdAt: true,
-          _count: {
-            select: {
-              clickEvents: true,
-            },
-          },
-        },
       }),
 
       this.prisma.clickEvent.findMany({
-        where: {
-          link: linkScope,
-        },
+        where: rangeWhere,
         orderBy: {
           clickedAt: 'desc',
         },
@@ -110,24 +108,57 @@ export class AnalyticsService {
         },
       }),
 
+      this.prisma.clickEvent.groupBy({
+        by: ['deviceType'],
+        where: rangeWhere,
+        _count: { _all: true },
+      }),
+
+      this.prisma.clickEvent.groupBy({
+        by: ['referrer'],
+        where: rangeWhere,
+        _count: { _all: true },
+      }),
+
       this.resolveBrandHostname(workspaceId),
+
+      this.prisma.clickEvent.findMany({
+        where: rangeWhere,
+        select: {
+          clickedAt: true,
+        },
+        orderBy: {
+          clickedAt: 'asc',
+        },
+      }),
     ]);
 
-    const rangeClicks = await this.prisma.clickEvent.findMany({
-      where: {
-        link: linkScope,
-        clickedAt: {
-          gte: range.from,
-          lte: range.to,
-        },
-      },
-      select: {
-        clickedAt: true,
-      },
-      orderBy: {
-        clickedAt: 'asc',
-      },
-    });
+    const topLinkIds = topLinkGroups.map((group) => group.linkId);
+    const topLinks =
+      topLinkIds.length === 0
+        ? []
+        : await this.prisma.link.findMany({
+            where: {
+              workspaceId,
+              id: { in: topLinkIds },
+            },
+            select: {
+              id: true,
+              title: true,
+              originalUrl: true,
+              shortCode: true,
+              createdAt: true,
+            },
+          });
+
+    const topLinkCountById = new Map(
+      topLinkGroups.map((group) => [
+        group.linkId,
+        typeof group._count === 'object' && group._count && '_all' in group._count
+          ? (group._count._all ?? 0)
+          : 0,
+      ]),
+    );
 
     const dailyClicks = this.buildDailyClicks(
       rangeClicks,
@@ -140,16 +171,26 @@ export class AnalyticsService {
       totalClicks,
       clicksToday,
       dailyClicks,
-      topLinks: topLinks.map((link) => ({
-        id: link.id,
-        title: link.title,
-        originalUrl: link.originalUrl,
-        shortCode: link.shortCode,
-        shortUrl: this.appConfig.buildShortUrl(link.shortCode, brandHostname),
-        totalClicks: link._count.clickEvents,
-        createdAt: link.createdAt,
-      })),
+      topLinks: topLinkIds
+        .map((id) => topLinks.find((link) => link.id === id))
+        .filter((link): link is NonNullable<typeof link> => Boolean(link))
+        .map((link) => ({
+          id: link.id,
+          title: link.title,
+          originalUrl: link.originalUrl,
+          shortCode: link.shortCode,
+          shortUrl: this.appConfig.buildShortUrl(link.shortCode, brandHostname),
+          totalClicks: topLinkCountById.get(link.id) ?? 0,
+          createdAt: link.createdAt,
+        })),
       recentClicks,
+      deviceStats: this.mapGroups(deviceGroups, 'deviceType'),
+      referrerStats: referrerGroups
+        .map((group) => ({
+          name: this.normalizeReferrer(group.referrer),
+          count: group._count._all,
+        }))
+        .sort((a, b) => b.count - a.count),
     };
   }
 
@@ -214,9 +255,7 @@ export class AnalyticsService {
       }),
 
       this.prisma.clickEvent.findMany({
-        where: {
-          linkId,
-        },
+        where,
         orderBy: {
           clickedAt: 'desc',
         },

@@ -169,6 +169,18 @@ export default function LinksPage() {
     const nextStatus: LinkStatus =
       link.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE';
 
+    if (nextStatus === 'DISABLED') {
+      const confirmed = await confirm({
+        title: t.links.deactivate,
+        description: interpolate(t.links.deactivateConfirm, {
+          name: link.title ?? link.shortCode,
+        }),
+        confirmLabel: t.links.deactivate,
+        variant: 'danger',
+      });
+      if (!confirmed) return;
+    }
+
     setError('');
     setMutatingLinkId(link.id);
 
@@ -206,9 +218,8 @@ export default function LinksPage() {
 
       if (links.length === 1 && page > 1) {
         setPage((current) => current - 1);
-      } else {
-        await refreshWorkspaceData();
       }
+      await refreshWorkspaceData();
     } catch (err) {
       setError(err instanceof Error ? err.message : t.links.deleteFailed);
     } finally {
@@ -285,7 +296,7 @@ export default function LinksPage() {
             </DropdownItem>
           )}
           {isExpired && (
-            <DropdownItem onClick={() => router.push(`/links/${link.id}`)}>
+            <DropdownItem onClick={() => router.push(`/links/${link.id}?tab=settings`)}>
               {t.common.extendExpiry}
             </DropdownItem>
           )}
@@ -349,11 +360,30 @@ export default function LinksPage() {
     );
   }
 
-  if (
-    workspaceLoading ||
-    (linksQuery.isLoading && !linksQuery.data) ||
-    !currentWorkspace
-  ) {
+  if (workspaceLoading) {
+    return <PageLoading showChart={false} showPanels />;
+  }
+
+  if (!currentWorkspace) {
+    return (
+      <AppShell>
+        <PageHeader
+          badge={t.links.badge}
+          title={t.links.title}
+          description={t.links.description}
+        />
+        <div className="mt-8">
+          <EmptyState
+            icon={Link2}
+            title={t.workspace.createTitle}
+            description={t.workspace.createDescription}
+          />
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (linksQuery.isLoading && !linksQuery.data) {
     return <PageLoading showChart={false} showPanels />;
   }
 
@@ -403,6 +433,15 @@ export default function LinksPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => void handleCopy(createdLink)}
+              >
+                {copiedShortCode === createdLink.shortCode
+                  ? t.common.copied
+                  : t.common.copyLink}
+              </Button>
               <a href={createdLink.shortUrl} target="_blank" rel="noreferrer">
                 <Button size="sm" variant="outline">
                   {t.common.testLink}

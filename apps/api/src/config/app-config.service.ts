@@ -167,7 +167,8 @@ export class AppConfigService implements OnModuleInit {
   }
 
   get smtpPass(): string {
-    return this.configService.get<string>('SMTP_PASS')?.trim() ?? '';
+    // Google App Passwords are often pasted with spaces for readability.
+    return (this.configService.get<string>('SMTP_PASS') ?? '').replace(/\s+/g, '');
   }
 
   get smtpFrom(): string {

@@ -12,6 +12,7 @@ import { LanguageToggle } from '@/components/ui/language-toggle';
 import { Logo } from '@/components/ui/logo';
 import { useLanguage } from '@/i18n/language-provider';
 import { authService } from '@/services/auth';
+import { getSafeRedirectPath } from '@/lib/safe-redirect';
 
 function BrandPanel() {
   const { t } = useLanguage();
@@ -70,7 +71,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const { t } = useLanguage();
 
-  const redirectTo = searchParams.get('redirect') ?? '/dashboard';
+  const redirectTo = getSafeRedirectPath(searchParams.get('redirect'));
   const sessionExpired = searchParams.get('expired') === '1';
   const passwordReset = searchParams.get('reset') === '1';
 
@@ -221,7 +222,14 @@ function LoginForm() {
             {!twoFactorToken && (
               <p className="mt-6 text-center text-sm text-[var(--muted-foreground)]">
                 {t.auth.noAccount}{' '}
-                <Link href="/register" className="text-[var(--accent)] hover:underline">
+                <Link
+                  href={
+                    redirectTo !== '/dashboard'
+                      ? `/register?redirect=${encodeURIComponent(redirectTo)}`
+                      : '/register'
+                  }
+                  className="text-[var(--accent)] hover:underline"
+                >
                   {t.auth.registerLink}
                 </Link>
               </p>

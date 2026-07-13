@@ -80,7 +80,30 @@ export default function DashboardPage() {
     }
   }
 
-  if (workspaceLoading || (isLoading && !overview) || !currentWorkspace) {
+  if (workspaceLoading) {
+    return <PageLoading showChart showPanels />;
+  }
+
+  if (!currentWorkspace) {
+    return (
+      <AppShell>
+        <PageHeader
+          badge={t.dashboard.badge}
+          title={t.dashboard.title}
+          description={t.dashboard.description}
+        />
+        <div className="mt-8">
+          <EmptyState
+            icon={Building2}
+            title={t.workspace.createTitle}
+            description={t.workspace.createDescription}
+          />
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (isLoading && !overview) {
     return <PageLoading showChart showPanels />;
   }
 
@@ -161,6 +184,22 @@ export default function DashboardPage() {
                 {heroCreatedLink.shortUrl}
               </p>
               <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(
+                        heroCreatedLink.shortUrl,
+                      );
+                      showToast(t.common.copied);
+                    } catch {
+                      setHeroError(t.links.copyFailed);
+                    }
+                  }}
+                >
+                  {t.common.copyLink}
+                </Button>
                 <a
                   href={heroCreatedLink.shortUrl}
                   target="_blank"

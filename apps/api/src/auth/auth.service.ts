@@ -52,9 +52,10 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto, context: SessionContext = {}) {
-    const existingUser = await this.prisma.user.findUnique({
+    const email = registerDto.email.trim().toLowerCase();
+    const existingUser = await this.prisma.user.findFirst({
       where: {
-        email: registerDto.email,
+        email: { equals: email, mode: 'insensitive' },
       },
     });
 
@@ -68,7 +69,7 @@ export class AuthService {
       const createdUser = await tx.user.create({
         data: {
           name: registerDto.name,
-          email: registerDto.email,
+          email,
           passwordHash,
         },
         select: {
@@ -97,9 +98,9 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto, context: SessionContext = {}) {
-    const user = await this.prisma.user.findUnique({
+    const user = await this.prisma.user.findFirst({
       where: {
-        email: loginDto.email,
+        email: { equals: loginDto.email.trim(), mode: 'insensitive' },
       },
     });
 
@@ -273,11 +274,11 @@ export class AuthService {
       }
     }
 
-    return this.prisma.user.update({
+    const user = await this.prisma.user.update({
       where: { id: userId },
       data: {
         name: dto.name,
-        email: dto.email?.toLowerCase(),
+        email: dto.email?.trim().toLowerCase(),
         timezone: dto.timezone,
         locale: dto.locale,
       },
@@ -289,8 +290,15 @@ export class AuthService {
         locale: true,
         createdAt: true,
         updatedAt: true,
+        totpEnabledAt: true,
       },
     });
+
+    const { totpEnabledAt, ...rest } = user;
+    return {
+      ...rest,
+      totpEnabled: Boolean(totpEnabledAt),
+    };
   }
 
   async forgotPassword(dto: ForgotPasswordDto) {
