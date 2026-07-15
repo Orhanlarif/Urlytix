@@ -67,6 +67,7 @@ describe('AuthService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    jwtService.signAsync.mockResolvedValue('signed-jwt-token');
     prisma.$transaction.mockImplementation(
       async (callback: (tx: typeof prisma) => Promise<unknown>) =>
         callback(prisma),
@@ -87,7 +88,7 @@ describe('AuthService', () => {
 
   describe('register', () => {
     it('creates a user, owner workspace, and refresh session atomically', async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.user.findFirst.mockResolvedValue(null);
       prisma.membership.findFirst.mockResolvedValue(null);
       prisma.workspace.findUnique.mockResolvedValue(null);
       prisma.user.create.mockResolvedValue({
@@ -128,7 +129,7 @@ describe('AuthService', () => {
     });
 
     it('throws when email already exists', async () => {
-      prisma.user.findUnique.mockResolvedValue({ id: 'existing' });
+      prisma.user.findFirst.mockResolvedValue({ id: 'existing' });
 
       await expect(
         service.register({
@@ -143,7 +144,7 @@ describe('AuthService', () => {
     it('returns token for valid credentials', async () => {
       const passwordHash = await bcrypt.hash('secret123', 10);
 
-      prisma.user.findUnique.mockResolvedValue({
+      prisma.user.findFirst.mockResolvedValue({
         id: 'user-1',
         name: 'Test User',
         email: 'test@example.com',
@@ -169,7 +170,7 @@ describe('AuthService', () => {
 
     it('returns two-factor challenge when TOTP is enabled', async () => {
       const passwordHash = await bcrypt.hash('secret123', 10);
-      prisma.user.findUnique.mockResolvedValue({
+      prisma.user.findFirst.mockResolvedValue({
         id: 'user-1',
         email: 'test@example.com',
         passwordHash,
@@ -190,7 +191,7 @@ describe('AuthService', () => {
     });
 
     it('throws when user is not found', async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.user.findFirst.mockResolvedValue(null);
 
       await expect(
         service.login({
@@ -203,7 +204,7 @@ describe('AuthService', () => {
     it('throws when password is invalid', async () => {
       const passwordHash = await bcrypt.hash('secret123', 10);
 
-      prisma.user.findUnique.mockResolvedValue({
+      prisma.user.findFirst.mockResolvedValue({
         id: 'user-1',
         email: 'test@example.com',
         passwordHash,
