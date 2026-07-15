@@ -65,8 +65,7 @@ const copy = {
       password_invalid: 'Şifre Hatalı',
     } satisfies Record<RedirectErrorCode, string>,
     descriptions: {
-      not_found:
-        'Aradığın kısa link mevcut değil veya kaldırılmış olabilir.',
+      not_found: 'Aradığın kısa link mevcut değil veya kaldırılmış olabilir.',
       inactive: 'Bu link şu anda devre dışı bırakılmış.',
       expired: 'Bu linkin geçerlilik süresi sona ermiş.',
       password_required: 'Bu linke erişmek için şifre girmen gerekiyor.',

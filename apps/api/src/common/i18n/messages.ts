@@ -6,12 +6,14 @@ import type { AppLocale } from './locale';
  */
 const enByTr: Record<string, string> = {
   'Bir hata oluştu.': 'Something went wrong.',
-  'Bu email adresi zaten kullanılıyor.': 'This email address is already in use.',
+  'Bu email adresi zaten kullanılıyor.':
+    'This email address is already in use.',
   'Email veya şifre hatalı.': 'Invalid email or password.',
   'Doğrulama oturumu geçersiz veya süresi dolmuş.':
     'Verification session is invalid or expired.',
   'Doğrulama oturumu geçersiz.': 'Verification session is invalid.',
-  'İki adımlı doğrulama etkin değil.': 'Two-factor authentication is not enabled.',
+  'İki adımlı doğrulama etkin değil.':
+    'Two-factor authentication is not enabled.',
   'Doğrulama kodu hatalı.': 'Invalid verification code.',
   'Kullanıcı bulunamadı.': 'User not found.',
   'Refresh token bulunamadı.': 'Refresh token not found.',
@@ -85,10 +87,7 @@ const enByTr: Record<string, string> = {
     'Your session expired. Please sign in again.',
 };
 
-export function translateMessage(
-  message: string,
-  locale: AppLocale,
-): string {
+export function translateMessage(message: string, locale: AppLocale): string {
   if (locale === 'tr') return message;
 
   if (enByTr[message]) return enByTr[message];

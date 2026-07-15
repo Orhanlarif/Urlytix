@@ -1,13 +1,14 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
+import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 import { AppConfigService } from '../config/app-config.service';
 import { buildPasswordResetEmail } from './mail.templates';
 
 @Injectable()
 export class MailService implements OnModuleInit {
   private readonly logger = new Logger(MailService.name);
-  private transporter: Transporter | null = null;
+  private transporter: Transporter<SMTPTransport.SentMessageInfo> | null = null;
 
   constructor(private readonly appConfig: AppConfigService) {
     if (this.appConfig.smtpConfigured) {

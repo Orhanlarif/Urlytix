@@ -90,7 +90,8 @@ export class AppConfigService implements OnModuleInit {
 
   get shortUrlBase(): string {
     const base =
-      this.configService.get<string>('SHORT_URL_BASE') ?? 'http://localhost:4000';
+      this.configService.get<string>('SHORT_URL_BASE') ??
+      'http://localhost:4000';
 
     // Strip legacy `/api/r` suffix so public links stay path-clean.
     return base.replace(/\/+$/, '').replace(/\/api\/r$/i, '');

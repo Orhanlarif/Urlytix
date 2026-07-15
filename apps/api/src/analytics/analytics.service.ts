@@ -154,7 +154,9 @@ export class AnalyticsService {
     const topLinkCountById = new Map(
       topLinkGroups.map((group) => [
         group.linkId,
-        typeof group._count === 'object' && group._count && '_all' in group._count
+        typeof group._count === 'object' &&
+        group._count &&
+        '_all' in group._count
           ? (group._count._all ?? 0)
           : 0,
       ]),

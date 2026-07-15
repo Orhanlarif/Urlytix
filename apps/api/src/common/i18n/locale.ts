@@ -1,8 +1,6 @@
 export type AppLocale = 'en' | 'tr';
 
-export function resolveLocale(
-  acceptLanguage: string | undefined,
-): AppLocale {
+export function resolveLocale(acceptLanguage: string | undefined): AppLocale {
   if (!acceptLanguage) return 'en';
 
   const preferred = acceptLanguage

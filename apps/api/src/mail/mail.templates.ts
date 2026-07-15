@@ -6,13 +6,14 @@ export function buildPasswordResetEmail(input: {
   expiresMinutes: number;
   userName?: string | null;
 }) {
-  const locale: PasswordResetEmailLocale =
-    input.locale?.toLowerCase().startsWith('tr') ? 'tr' : 'en';
+  const locale: PasswordResetEmailLocale = input.locale
+    ?.toLowerCase()
+    .startsWith('tr')
+    ? 'tr'
+    : 'en';
 
   if (locale === 'tr') {
-    const greeting = input.userName
-      ? `Merhaba ${input.userName},`
-      : 'Merhaba,';
+    const greeting = input.userName ? `Merhaba ${input.userName},` : 'Merhaba,';
     const subject = 'Urlytix şifre sıfırlama';
     const text = [
       greeting,

@@ -144,17 +144,16 @@ export class AuthService {
     };
   }
 
-  async verifyTwoFactor(
-    dto: VerifyTwoFactorDto,
-    context: SessionContext = {},
-  ) {
+  async verifyTwoFactor(dto: VerifyTwoFactorDto, context: SessionContext = {}) {
     let payload: TwoFactorPendingPayload;
     try {
       payload = await this.jwtService.verifyAsync<TwoFactorPendingPayload>(
         dto.twoFactorToken,
       );
     } catch {
-      throw new UnauthorizedException('Doğrulama oturumu geçersiz veya süresi dolmuş.');
+      throw new UnauthorizedException(
+        'Doğrulama oturumu geçersiz veya süresi dolmuş.',
+      );
     }
 
     if (payload.purpose !== 'two_factor') {
@@ -168,7 +167,11 @@ export class AuthService {
       throw new BadRequestException('İki adımlı doğrulama etkin değil.');
     }
 
-    const valid = await this.verifyTotpOrBackupCode(user.id, user.totpSecret, dto.code);
+    const valid = await this.verifyTotpOrBackupCode(
+      user.id,
+      user.totpSecret,
+      dto.code,
+    );
     if (!valid) {
       throw new UnauthorizedException('Doğrulama kodu hatalı.');
     }
@@ -381,7 +384,9 @@ export class AuthService {
       });
     });
 
-    return { message: 'Şifreniz güncellendi. Yeni şifrenizle giriş yapabilirsiniz.' };
+    return {
+      message: 'Şifreniz güncellendi. Yeni şifrenizle giriş yapabilirsiniz.',
+    };
   }
 
   async changePassword(
@@ -400,7 +405,9 @@ export class AuthService {
     }
 
     if (dto.currentPassword === dto.newPassword) {
-      throw new BadRequestException('Yeni şifre mevcut şifreden farklı olmalı.');
+      throw new BadRequestException(
+        'Yeni şifre mevcut şifreden farklı olmalı.',
+      );
     }
 
     const passwordHash = await bcrypt.hash(dto.newPassword, 10);
