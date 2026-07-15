@@ -113,14 +113,14 @@ function LoginForm() {
         <div className="absolute left-1/2 top-0 h-96 w-96 -translate-x-1/2 rounded-full bg-[var(--accent)]/10 blur-3xl" />
       </div>
 
-      <div className="absolute right-6 top-6 z-10">
+      <div className="absolute right-4 top-4 z-10 sm:right-6 sm:top-6">
         <LanguageToggle size="sm" />
       </div>
 
       <div className="grid min-h-screen lg:grid-cols-2">
         <BrandPanel />
 
-        <div className="flex items-center justify-center px-6 py-16">
+        <div className="flex items-center justify-center px-4 py-14 sm:px-6 sm:py-16">
           <Card className="relative w-full max-w-md animate-fade-in">
             <div className="mb-6 lg:hidden">
               <Logo href="/" size="sm" />
@@ -166,6 +166,7 @@ function LoginForm() {
                     type="password"
                     required
                     autoComplete="current-password"
+                    showPasswordToggle
                   />
 
                   <div className="flex justify-end">

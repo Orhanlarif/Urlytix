@@ -87,6 +87,7 @@ function ResetPasswordForm() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               hint={t.auth.passwordHint}
+              showPasswordToggle
             />
             <Input
               label={t.auth.confirmPassword}
@@ -96,6 +97,7 @@ function ResetPasswordForm() {
               autoComplete="new-password"
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
+              showPasswordToggle
             />
             {error && (
               <div className="rounded-xl border border-[var(--danger-border)] bg-[var(--danger-muted)] px-4 py-3 text-sm text-[var(--danger)]">

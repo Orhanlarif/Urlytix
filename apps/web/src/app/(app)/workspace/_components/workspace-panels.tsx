@@ -20,7 +20,7 @@ import { FormEvent, useState } from 'react';
 import {
   useWorkspaceAccess,
   WorkspaceReadOnlyNotice,
-} from '@/app/settings/_components/workspace-access';
+} from '../../settings/_components/workspace-access';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
@@ -28,6 +28,7 @@ import { useConfirm } from '@/components/ui/confirm-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorBanner } from '@/components/ui/error-banner';
 import { Input } from '@/components/ui/input';
+import { DateTimePicker } from '@/components/ui/datetime-picker';
 import { Modal } from '@/components/ui/modal';
 import { MenuSelect } from '@/components/ui/menu-select';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -126,7 +127,12 @@ export function WorkspaceSettings() {
             onChange={(event) => setName(event.target.value)}
           />
           <Input label={t.settings.workspaceSlug} value={currentWorkspace?.slug ?? ''} disabled />
-          <Button type="submit" disabled={!currentWorkspace || !canManage || saving || name.trim() === currentWorkspace.name}>
+          <Button
+            type="submit"
+            fullWidth
+            className="sm:w-auto"
+            disabled={!currentWorkspace || !canManage || saving || name.trim() === currentWorkspace.name}
+          >
             {saving ? t.common.saving : t.common.save}
           </Button>
         </form>
@@ -155,6 +161,8 @@ export function WorkspaceSettings() {
             <Button
               type="submit"
               variant="danger"
+              fullWidth
+              className="sm:w-auto"
               disabled={
                 !canDelete ||
                 deleting ||
@@ -298,7 +306,10 @@ export function MemberSettings() {
           </div>
         )}
         {canManage && (
-          <form className="mt-6 grid gap-4 sm:grid-cols-[1fr_12.5rem_auto] sm:items-end" onSubmit={handleAdd}>
+          <form
+            className="mt-6 grid gap-4 sm:grid-cols-[1fr_12.5rem_auto] sm:items-end"
+            onSubmit={handleAdd}
+          >
             <Input
               name="member-email"
               type="email"
@@ -308,35 +319,41 @@ export function MemberSettings() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
             />
-            <MenuSelect
-              label={t.settings.memberRole}
-              value={role}
-              onChange={setRole}
-              options={[
-                {
-                  value: 'ADMIN',
-                  label: t.settings.roleAdmin,
-                  description: t.settings.roleAdminDescription,
-                  tone: 'success',
-                },
-                {
-                  value: 'MEMBER',
-                  label: t.settings.roleMember,
-                  description: t.settings.roleMemberDescription,
-                  tone: 'default',
-                },
-                {
-                  value: 'VIEWER',
-                  label: t.settings.roleViewer,
-                  description: t.settings.roleViewerDescription,
-                  tone: 'warning',
-                },
-              ]}
-            />
-            <Button type="submit" disabled={adding || !currentWorkspace}>
-              <UserPlus className="h-4 w-4" />
-              {adding ? t.settings.memberAdding : t.settings.memberAdd}
-            </Button>
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 sm:contents">
+              <MenuSelect
+                label={t.settings.memberRole}
+                value={role}
+                onChange={setRole}
+                options={[
+                  {
+                    value: 'ADMIN',
+                    label: t.settings.roleAdmin,
+                    description: t.settings.roleAdminDescription,
+                    tone: 'success',
+                  },
+                  {
+                    value: 'MEMBER',
+                    label: t.settings.roleMember,
+                    description: t.settings.roleMemberDescription,
+                    tone: 'default',
+                  },
+                  {
+                    value: 'VIEWER',
+                    label: t.settings.roleViewer,
+                    description: t.settings.roleViewerDescription,
+                    tone: 'warning',
+                  },
+                ]}
+              />
+              <Button
+                type="submit"
+                disabled={adding || !currentWorkspace}
+                className="shrink-0"
+              >
+                <UserPlus className="h-4 w-4" />
+                {adding ? t.settings.memberAdding : t.settings.memberAdd}
+              </Button>
+            </div>
           </form>
         )}
       </Card>
@@ -377,9 +394,9 @@ export function MemberSettings() {
               return (
                 <li
                   key={member.id}
-                  className="flex flex-col gap-3 rounded-[var(--radius-md)] py-4 transition-colors hover:bg-[var(--surface-hover)] sm:flex-row sm:items-center sm:justify-between sm:px-3"
+                  className="flex flex-col gap-3 rounded-[var(--radius-md)] px-1 py-4 transition-colors hover:bg-[var(--surface-hover)] sm:flex-row sm:items-center sm:justify-between sm:px-3"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] text-sm font-semibold text-[var(--accent)]">
                       {getInitials(member.user.name || member.user.email)}
                     </div>
@@ -397,13 +414,19 @@ export function MemberSettings() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div
+                    className={
+                      canEdit
+                        ? 'flex w-full items-center justify-between gap-3 pl-[3.25rem] sm:w-auto sm:justify-end sm:pl-0'
+                        : 'flex w-full items-center justify-end gap-3 pl-[3.25rem] sm:w-auto sm:pl-0'
+                    }
+                  >
                     {canEdit ? (
                       <MenuSelect
                         aria-label={t.settings.memberRole}
                         value={member.role as AssignableWorkspaceRole}
                         disabled={updatingUserId === member.userId}
-                        className="w-40"
+                        className="min-w-0 flex-1 sm:w-40 sm:flex-none"
                         align="right"
                         onChange={(nextRole) =>
                           void handleRoleChange(member, nextRole)
@@ -435,6 +458,7 @@ export function MemberSettings() {
                       <Button
                         type="button"
                         variant="ghost"
+                        className="shrink-0"
                         onClick={() => void handleRemove(member)}
                         aria-label={t.settings.memberRemoveTitle}
                       >
@@ -623,9 +647,9 @@ export function DomainSettings() {
                         <p className="text-xs text-[var(--muted-foreground)]">
                           {t.settings.domainDnsHelp}
                         </p>
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                            <span className="w-24 shrink-0 text-xs text-[var(--muted-foreground)]">
+                            <span className="shrink-0 text-xs text-[var(--muted-foreground)] sm:w-24">
                               {t.settings.domainTxtRecord}
                             </span>
                             <code className="min-w-0 flex-1 break-all rounded-lg bg-[var(--background)] px-3 py-2 font-mono text-xs text-[var(--accent)]">
@@ -635,6 +659,8 @@ export function DomainSettings() {
                               type="button"
                               variant="outline"
                               size="sm"
+                              fullWidth
+                              className="sm:w-auto"
                               onClick={() => void copyValue(txtName)}
                             >
                               <Clipboard className="h-3.5 w-3.5" />
@@ -642,7 +668,7 @@ export function DomainSettings() {
                             </Button>
                           </div>
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                            <span className="w-24 shrink-0 text-xs text-[var(--muted-foreground)]">
+                            <span className="shrink-0 text-xs text-[var(--muted-foreground)] sm:w-24">
                               {t.settings.domainTxtValue}
                             </span>
                             <code className="min-w-0 flex-1 break-all rounded-lg bg-[var(--background)] px-3 py-2 font-mono text-xs text-[var(--accent)]">
@@ -652,6 +678,8 @@ export function DomainSettings() {
                               type="button"
                               variant="outline"
                               size="sm"
+                              fullWidth
+                              className="sm:w-auto"
                               onClick={() =>
                                 void copyValue(domain.verificationToken)
                               }
@@ -664,10 +692,12 @@ export function DomainSettings() {
                       </div>
                     )}
                   </div>
-                  <div className="flex shrink-0 flex-wrap gap-2">
+                  <div className="flex w-full gap-2 sm:w-auto sm:shrink-0 sm:flex-wrap">
                     {canManage && !verified && (
                       <Button
                         size="sm"
+                        fullWidth
+                        className="flex-1 sm:w-auto sm:flex-none"
                         onClick={() => void verifyDomain(domain)}
                         disabled={verifyingId === domain.id}
                       >
@@ -681,6 +711,8 @@ export function DomainSettings() {
                       <Button
                         variant="danger"
                         size="sm"
+                        fullWidth
+                        className="flex-1 sm:w-auto sm:flex-none"
                         onClick={() => void removeDomain(domain)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -903,13 +935,12 @@ export function ApiKeySettings() {
             value={name}
             onChange={(event) => setName(event.target.value)}
           />
-          <Input
+          <DateTimePicker
             name="api-key-expiry"
-            type="datetime-local"
             label={t.settings.expiresAt}
             hint={t.settings.expiresHint}
             value={expiresAt}
-            onChange={(event) => setExpiresAt(event.target.value)}
+            onChange={setExpiresAt}
           />
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <Button

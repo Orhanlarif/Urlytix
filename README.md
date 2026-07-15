@@ -62,6 +62,7 @@ cp apps/web/.env.example apps/web/.env.local
 | `CORS_ORIGINS` | API | Comma-separated frontend URLs |
 | `SHORT_URL_BASE` | API | Public origin for short links (`https://host` → `https://host/abc1234`) |
 | `NEXT_PUBLIC_API_URL` | Web | API base URL (e.g. `http://localhost:4000/api`) |
+| `NEXT_PUBLIC_SITE_URL` | Web | Canonical public site origin (sitemap, OG, JSON-LD) |
 
 ### 5. Run migrations and workspace backfill
 
@@ -107,6 +108,7 @@ SHORT_URL_BASE=https://api.yourdomain.com
 
 ```env
 NEXT_PUBLIC_API_URL=https://api.yourdomain.com/api
+NEXT_PUBLIC_SITE_URL=https://yourdomain.com
 ```
 
 ### Pre-deploy checklist
@@ -114,8 +116,10 @@ NEXT_PUBLIC_API_URL=https://api.yourdomain.com/api
 - [ ] Set strong `JWT_SECRET`
 - [ ] Set `SHORT_URL_BASE` to production API URL
 - [ ] Set `CORS_ORIGINS` to production frontend URL
+- [ ] Set `NEXT_PUBLIC_SITE_URL` to the public web origin
 - [ ] Run `pnpm --filter api deploy:database` (migration → idempotent workspace backfill → orphan verification)
 - [ ] Verify `/api/health` returns `database: connected`
+- [ ] After DNS is live: submit sitemap (`/sitemap.xml`) in Google Search Console
 
 ## Scripts
 

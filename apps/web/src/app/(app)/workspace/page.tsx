@@ -13,7 +13,7 @@ import {
   DomainSettings,
   MemberSettings,
   WorkspaceSettings,
-} from '@/app/workspace/_components/workspace-panels';
+} from './_components/workspace-panels';
 
 export default function WorkspacePage() {
   const { t } = useLanguage();

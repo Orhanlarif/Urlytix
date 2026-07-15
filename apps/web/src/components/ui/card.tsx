@@ -45,13 +45,17 @@ type CardHeaderProps = {
 export function CardHeader({ title, description, action }: CardHeaderProps) {
   return (
     <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
-      <div>
+      <div className="min-w-0">
         <h2 className="text-heading">{title}</h2>
         {description && (
           <p className="mt-1 text-sm text-[var(--muted-foreground)]">{description}</p>
         )}
       </div>
-      {action}
+      {action ? (
+        <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center [&_button]:w-full sm:[&_button]:w-auto">
+          {action}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -114,12 +114,13 @@ export function MenuSelect<T extends string>({
           disabled={disabled}
           onClick={() => setOpen((current) => !current)}
           className={cn(
-            'flex min-h-[var(--control-height)] w-full items-center gap-2.5 rounded-xl border bg-[var(--surface)] px-3.5 text-left text-sm transition',
+            'flex min-h-[var(--control-height)] w-full items-center gap-2.5 rounded-xl border bg-[var(--surface)] px-3.5 text-left text-sm outline-none transition',
+            'focus-visible:ring-2 focus-visible:ring-[var(--accent)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]',
             open
-              ? 'border-[var(--accent)] ring-2 ring-[var(--accent)]/20'
+              ? 'border-[var(--accent)] ring-2 ring-[var(--accent)]/25'
               : 'border-[var(--border)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]',
             disabled &&
-              'cursor-not-allowed bg-[var(--surface-raised)] text-[var(--muted-foreground)] hover:border-[var(--border)] hover:bg-[var(--surface-raised)]',
+              'cursor-not-allowed bg-[var(--surface-raised)] text-[var(--muted-foreground)] hover:border-[var(--border)] hover:bg-[var(--surface-raised)] focus-visible:ring-0 focus-visible:ring-offset-0',
             triggerClassName,
           )}
         >

@@ -1,6 +1,7 @@
 'use client';
 
-import { ReactNode, useEffect, useId, useRef } from 'react';
+import { ReactNode, useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 const focusableSelector = [
@@ -31,13 +32,18 @@ export function Modal({
   const descriptionId = useId();
   const panel = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !mounted) return;
 
     const previouslyFocused = document.activeElement as HTMLElement | null;
     const previousOverflow = document.body.style.overflow;
@@ -78,11 +84,11 @@ export function Modal({
       document.body.style.overflow = previousOverflow;
       previouslyFocused?.focus();
     };
-  }, [open]);
+  }, [open, mounted]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  return createPortal(
     <div
       className="animate-fade-in fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm"
       onMouseDown={(event) => event.target === event.currentTarget && onClose()}
@@ -122,6 +128,7 @@ export function Modal({
         </div>
         <div className="mt-5 sm:mt-6">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

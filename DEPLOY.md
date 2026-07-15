@@ -78,6 +78,7 @@ Beklenen yanıt:
 
 ```env
 NEXT_PUBLIC_API_URL=https://api.yourdomain.com/api
+NEXT_PUBLIC_SITE_URL=https://yourdomain.com
 ```
 
 Web oturumu API'nin yönettiği httpOnly `access_token` ve `refresh_token`
@@ -85,12 +86,15 @@ cookie'lerine dayanır. Web ve API hostlarını aynı site altında tut; API
 `CORS_ORIGINS` değeri web origin'ini birebir içermeli ve credential'lı istekleri
 kabul etmelidir.
 
+`NEXT_PUBLIC_SITE_URL` sitemap, robots.txt, Open Graph ve JSON-LD için kanonik
+site origin'idir (trailing slash olmadan).
+
 ### Vercel deploy
 
 1. Repo'yu Vercel'e bağla.
 2. Root directory: `apps/web`
 3. Build command: `pnpm build` (monorepo root'tan) veya Vercel'de `cd ../.. && pnpm --filter web build`
-4. `NEXT_PUBLIC_API_URL` env variable'ını ekle.
+4. `NEXT_PUBLIC_API_URL` ve `NEXT_PUBLIC_SITE_URL` env variable'larını ekle.
 
 ## 4. DNS & Domain
 

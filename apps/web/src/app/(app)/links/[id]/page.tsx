@@ -21,6 +21,7 @@ import { Card, CardHeader } from '@/components/ui/card';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorBanner } from '@/components/ui/error-banner';
+import { DateTimePicker } from '@/components/ui/datetime-picker';
 import { Input } from '@/components/ui/input';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { MetricCard } from '@/components/ui/metric-card';
@@ -36,6 +37,7 @@ import {
 import { interpolate } from '@/i18n';
 import { useLanguage } from '@/i18n/language-provider';
 import { formatDate, formatDateTime, truncateText } from '@/lib/format';
+import { toDateTimeLocalValue } from '@/lib/datetime-local';
 import {
   canToggleLinkStatus,
   getLinkStatusBadgeClass,
@@ -627,11 +629,10 @@ function LinkDetailPageContent() {
             required
           />
 
-          <Input
+          <DateTimePicker
             label={t.linkDetail.expiresAt}
             value={editExpiresAt}
-            onChange={(event) => setEditExpiresAt(event.target.value)}
-            type="datetime-local"
+            onChange={setEditExpiresAt}
             hint={t.linkDetail.expiresHint}
           />
 
@@ -790,13 +791,6 @@ function LinkDetailPageContent() {
       />
     </AppShell>
   );
-}
-
-function toDateTimeLocalValue(value: string) {
-  const date = new Date(value);
-  const offset = date.getTimezoneOffset();
-  const local = new Date(date.getTime() - offset * 60_000);
-  return local.toISOString().slice(0, 16);
 }
 
 function StatsPanel({

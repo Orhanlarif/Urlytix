@@ -27,6 +27,7 @@ import { DropdownItem, DropdownMenu } from '@/components/ui/dropdown-menu';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorBanner } from '@/components/ui/error-banner';
 import { Input } from '@/components/ui/input';
+import { DateTimePicker } from '@/components/ui/datetime-picker';
 import { MetricCard } from '@/components/ui/metric-card';
 import { PageHeader } from '@/components/ui/page-header';
 import { PageLoading } from '@/components/ui/page-loading';
@@ -396,15 +397,19 @@ export default function LinksPage() {
         action={
           <Button
             variant="secondary"
+            size="sm"
+            className="min-h-10 gap-2 px-3 sm:min-h-0"
             onClick={() => {
               void refreshWorkspaceData();
             }}
             disabled={!currentWorkspace || isListLoading}
+            aria-label={t.links.refresh}
           >
             <RefreshCw
-              className={`h-4 w-4 ${isListLoading ? 'animate-spin' : ''}`}
+              className={`h-4 w-4 shrink-0 ${isListLoading ? 'animate-spin' : ''}`}
             />
-            {t.links.refresh}
+            <span className="hidden sm:inline">{t.links.refresh}</span>
+            <span className="sm:hidden">{t.common.refresh}</span>
           </Button>
         }
       />
@@ -501,7 +506,7 @@ export default function LinksPage() {
             type="button"
             onClick={() => setShowAdvanced((value) => !value)}
             aria-expanded={showAdvanced}
-            className="mt-4 flex items-center gap-2 text-sm font-medium text-[var(--muted-foreground)] transition hover:text-[var(--foreground)]"
+            className="mt-4 flex items-center gap-2 rounded-lg px-1 py-1 text-sm font-medium text-[var(--muted-foreground)] transition hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)]/40"
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
             {t.links.advancedOptions}
@@ -535,14 +540,14 @@ export default function LinksPage() {
                   {t.common.optional}
                 </span>
               </label>
-              <div className="mt-2 flex overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] focus-within:border-[var(--accent)]">
+              <div className="mt-2 flex overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] transition focus-within:border-[var(--accent)] focus-within:ring-2 focus-within:ring-inset focus-within:ring-[var(--accent)]/30">
                 <span className="border-r border-[var(--border)] px-4 py-3 text-sm text-[var(--muted-foreground)]">
                   /
                 </span>
                 <input
                   value={customAlias}
                   onChange={(event) => setCustomAlias(event.target.value)}
-                  className="w-full bg-transparent px-4 py-3 text-sm outline-none"
+                  className="w-full bg-transparent px-4 py-3 text-sm outline-none focus-visible:outline-none"
                   placeholder={t.links.aliasPlaceholder}
                 />
               </div>
@@ -551,11 +556,10 @@ export default function LinksPage() {
               </p>
             </div>
 
-            <Input
+            <DateTimePicker
               label={`${t.links.expiresAt} (${t.common.optional})`}
               value={expiresAt}
-              onChange={(event) => setExpiresAt(event.target.value)}
-              type="datetime-local"
+              onChange={setExpiresAt}
               hint={t.links.expiresHint}
             />
 

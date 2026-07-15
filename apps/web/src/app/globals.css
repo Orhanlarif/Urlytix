@@ -105,9 +105,28 @@ select:not(:disabled) {
   cursor: progress;
 }
 
-:focus-visible {
-  outline: 2px solid var(--accent);
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Global outline only as fallback for plain links.
+   Form controls/buttons use Tailwind rings that follow border-radius. */
+:where(a):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
   outline-offset: 2px;
+  border-radius: 0.5rem;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role='button']:focus-visible,
+[role='menuitem']:focus-visible,
+[role='option']:focus-visible,
+[role='tab']:focus-visible,
+[role='combobox']:focus-visible {
+  outline: none;
 }
 
 ::-webkit-scrollbar {

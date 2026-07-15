@@ -42,7 +42,12 @@ export function DropdownMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
-        className="grid h-10 w-10 place-items-center rounded-lg border border-[var(--border)] text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+        className={cn(
+          'grid h-10 w-10 place-items-center rounded-xl border border-[var(--border)] text-[var(--muted-foreground)] transition-colors',
+          'hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)]/45',
+          open && 'border-[var(--accent)] bg-[var(--surface-hover)] text-[var(--foreground)]',
+        )}
       >
         <MoreHorizontal className="h-4 w-4" />
       </button>
@@ -80,7 +85,9 @@ export function DropdownItem({
       type="button"
       onClick={onClick}
       className={cn(
-        'flex w-full items-center gap-2 rounded-[var(--radius-sm)] px-3 py-2.5 text-left text-sm transition-colors hover:bg-[var(--surface-hover)]',
+        'flex w-full items-center gap-2 rounded-[var(--radius-sm)] px-3 py-2.5 text-left text-sm transition-colors outline-none',
+        'focus-visible:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)]/35',
+        'hover:bg-[var(--surface-hover)]',
         danger ? 'text-[var(--danger)]' : 'text-[var(--foreground)]',
       )}
     >

@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Globe2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { SecuritySettings } from '@/app/settings/_components/security-settings';
+import { SecuritySettings } from './_components/security-settings';
 import { AppShell } from '@/components/layout/app-shell';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';

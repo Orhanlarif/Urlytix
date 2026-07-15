@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { formatNumber } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { Locale } from '@/i18n/types';
@@ -25,6 +25,7 @@ export function DailyClicksChart({
   heightClass?: string;
 }) {
   const chartId = useId();
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const maxValue = Math.max(...data.map((item) => item.clicks), 1);
   const peakValue = Math.max(...data.map((item) => item.clicks), 0);
@@ -34,8 +35,25 @@ export function DailyClicksChart({
       : 0;
   const averageFraction = peakValue > 0 ? Math.min(average / maxValue, 1) : 0;
 
+  // On narrow screens bars overflow; keep the latest (current) day in view.
+  useLayoutEffect(() => {
+    const node = scrollRef.current;
+    if (!node) return;
+
+    const scrollToLatest = () => {
+      node.scrollLeft = Math.max(0, node.scrollWidth - node.clientWidth);
+    };
+
+    scrollToLatest();
+    const frame = requestAnimationFrame(scrollToLatest);
+    return () => cancelAnimationFrame(frame);
+  }, [data]);
+
   return (
-    <div className="mt-8 overflow-x-auto overflow-y-visible pb-1">
+    <div
+      ref={scrollRef}
+      className="mt-8 overflow-x-auto overflow-y-visible pb-1"
+    >
       <div
         className={cn(
           'relative flex min-w-0 gap-1.5 border-b border-[var(--border)] pb-4 sm:gap-2',

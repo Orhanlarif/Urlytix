@@ -310,27 +310,29 @@ export default function DashboardPage() {
                       <Link
                         key={link.id}
                         href={`/links/${link.id}`}
-                        className="block rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 transition hover:border-[var(--accent-border)] hover:bg-[var(--surface-hover)]"
+                        className="block rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 transition hover:border-[var(--accent-border)] hover:bg-[var(--surface-hover)] sm:p-5"
                       >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="min-w-0">
-                            <p className="font-semibold">
-                              {link.title ?? link.shortCode}
-                            </p>
+                        <p className="font-semibold leading-snug">
+                          {link.title ?? link.shortCode}
+                        </p>
 
-                            <p className="mt-2 break-all text-sm text-[var(--accent)]">
-                              {link.shortUrl}
-                            </p>
+                        <p className="mt-2 break-all text-sm text-[var(--accent)]">
+                          {link.shortUrl}
+                        </p>
 
-                            <p className="mt-2 break-all text-xs text-[var(--muted-foreground)]">
-                              {link.originalUrl}
-                            </p>
-                          </div>
+                        <p className="mt-1.5 break-all text-xs text-[var(--muted-foreground)]">
+                          {link.originalUrl}
+                        </p>
 
-                          <div className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm text-[var(--foreground)]">
-                            {formatNumber(link.totalClicks, locale)}{' '}
-                            {t.common.click}
-                          </div>
+                        <div className="mt-4 flex items-center border-t border-[var(--border)] pt-3">
+                          <span className="inline-flex items-baseline gap-1.5 text-sm">
+                            <span className="font-semibold tabular-nums text-[var(--accent)]">
+                              {formatNumber(link.totalClicks, locale)}
+                            </span>
+                            <span className="text-[var(--muted-foreground)]">
+                              {t.common.click}
+                            </span>
+                          </span>
                         </div>
                       </Link>
                     ))

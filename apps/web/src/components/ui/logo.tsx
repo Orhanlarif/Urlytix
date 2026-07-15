@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/i18n/language-provider';
@@ -11,6 +12,10 @@ type LogoProps = {
   className?: string;
 };
 
+/** Natural aspect of ux-mark.png (cropped glyph, no badge box). */
+const MARK_WIDTH = 125;
+const MARK_HEIGHT = 80;
+
 export function Logo({
   href = '/',
   showTagline = false,
@@ -18,47 +23,26 @@ export function Logo({
   className,
 }: LogoProps) {
   const { t } = useLanguage();
-  const iconSize = size === 'sm' ? 'h-8 w-8 text-sm' : 'h-10 w-10 text-base';
-  const textSize = size === 'sm' ? 'text-lg' : 'text-xl';
+  const markHeight = size === 'sm' ? 28 : 36;
+  const markWidth = Math.round((MARK_WIDTH / MARK_HEIGHT) * markHeight);
+  const textSize = size === 'sm' ? 'text-xl sm:text-2xl' : 'text-3xl';
 
   const content = (
-    <div className={cn('flex items-center gap-3', className)}>
-      <div
-        className={cn(
-          'flex items-center justify-center rounded-2xl bg-gradient-to-br from-[var(--accent-hover)] to-[var(--accent-active)] shadow-[var(--shadow-glow)]',
-          iconSize,
-        )}
-      >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          className="h-[55%] w-[55%]"
-          aria-hidden="true"
-        >
-          <path
-            d="M9.5 14.5L14.5 9.5"
-            stroke="var(--accent-foreground)"
-            strokeWidth="2.25"
-            strokeLinecap="round"
-          />
-          <path
-            d="M11 6.5L12.7 4.8a3.6 3.6 0 0 1 5.1 5.1L16 11.6"
-            stroke="var(--accent-foreground)"
-            strokeWidth="2.25"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M13 17.5L11.3 19.2a3.6 3.6 0 0 1-5.1-5.1L8 12.4"
-            stroke="var(--accent-foreground)"
-            strokeWidth="2.25"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </div>
+    <div className={cn('flex items-center gap-2.5', className)}>
+      <Image
+        src="/ux-mark.png"
+        alt=""
+        width={MARK_WIDTH}
+        height={MARK_HEIGHT}
+        sizes={`${markWidth}px`}
+        priority
+        unoptimized
+        className="shrink-0 object-contain"
+        style={{ width: markWidth, height: markHeight }}
+        aria-hidden
+      />
 
-      <div>
+      <div className="min-w-0 leading-tight">
         <p className={cn('font-bold tracking-tight', textSize)}>Urlytix</p>
         {showTagline && (
           <p className="text-xs text-[var(--muted-foreground)]">{t.nav.tagline}</p>
@@ -69,7 +53,7 @@ export function Logo({
 
   if (href) {
     return (
-      <Link href={href} className="transition hover:opacity-90">
+      <Link href={href} className="transition hover:opacity-90" aria-label="Urlytix">
         {content}
       </Link>
     );

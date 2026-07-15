@@ -178,14 +178,14 @@ export function AppShell({ children }: AppShellProps) {
           <main
             id="main-content"
             tabIndex={-1}
-            className="flex-1 px-4 py-7 pb-24 sm:px-6 lg:px-8 lg:py-9 lg:pb-9"
+            className="flex-1 px-4 py-7 pb-28 sm:px-6 lg:px-8 lg:py-9 lg:pb-9"
           >
             <div className="mx-auto max-w-7xl">{children}</div>
           </main>
 
           <nav
             aria-label={t.common.mainNavigation}
-            className="fixed inset-x-0 bottom-0 z-20 border-t border-[var(--border)] bg-[var(--background)]/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur lg:hidden"
+            className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-20 rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--background)]/95 px-1.5 py-1.5 shadow-[var(--shadow-lg)] backdrop-blur lg:hidden"
           >
             <div className="grid grid-cols-5 gap-1">
               {navItems.map((item) => {
@@ -198,7 +198,7 @@ export function AppShell({ children }: AppShellProps) {
                     href={item.href}
                     aria-current={active ? 'page' : undefined}
                     className={cn(
-                      'flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[11px] font-medium transition',
+                      'flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-[var(--radius-lg)] px-1 py-2 text-[11px] font-medium transition',
                       active
                         ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
                         : 'text-[var(--muted-foreground)]',

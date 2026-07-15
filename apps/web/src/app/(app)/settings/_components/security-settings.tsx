@@ -213,8 +213,8 @@ export function SecuritySettings() {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <Card>
+    <div className="grid gap-5 sm:gap-6 lg:grid-cols-2">
+      <Card className="overflow-hidden">
         <CardHeader
           title={t.settings.changePasswordTitle}
           description={t.settings.changePasswordDescription}
@@ -225,6 +225,7 @@ export function SecuritySettings() {
             label={t.settings.currentPassword}
             autoComplete="current-password"
             required
+            showPasswordToggle
             value={currentPassword}
             onChange={(event) => setCurrentPassword(event.target.value)}
           />
@@ -234,6 +235,7 @@ export function SecuritySettings() {
             autoComplete="new-password"
             required
             minLength={12}
+            showPasswordToggle
             hint={t.auth.passwordHint}
             value={newPassword}
             onChange={(event) => setNewPassword(event.target.value)}
@@ -244,26 +246,30 @@ export function SecuritySettings() {
             autoComplete="new-password"
             required
             minLength={12}
+            showPasswordToggle
             value={confirmPassword}
             onChange={(event) => setConfirmPassword(event.target.value)}
           />
-          <Button type="submit" disabled={changingPassword}>
+          <Button type="submit" fullWidth className="sm:w-auto" disabled={changingPassword}>
             {changingPassword ? t.common.saving : t.settings.changePassword}
           </Button>
         </form>
       </Card>
 
-      <Card>
+      <Card className="overflow-hidden">
         <CardHeader
           title={t.settings.twoFactorTitle}
           description={t.settings.twoFactorDescription}
         />
         <div className="mt-6 space-y-4">
-          <div className="flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-4">
-            <ShieldCheck className="h-5 w-5 text-[var(--accent)]" />
+          <div className="flex items-start gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 sm:items-center sm:p-4">
+            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[var(--accent)] sm:mt-0" />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium">{t.settings.twoFactorStatus}</p>
-              <Badge variant={user?.totpEnabled ? 'success' : 'default'} className="mt-1">
+              <Badge
+                variant={user?.totpEnabled ? 'success' : 'default'}
+                className="mt-1.5"
+              >
                 {user?.totpEnabled
                   ? t.settings.twoFactorOn
                   : t.settings.twoFactorOff}
@@ -272,7 +278,12 @@ export function SecuritySettings() {
           </div>
 
           {!user?.totpEnabled && !setupQr && (
-            <Button onClick={() => void handleSetupTwoFactor()} disabled={settingUp2fa}>
+            <Button
+              onClick={() => void handleSetupTwoFactor()}
+              disabled={settingUp2fa}
+              fullWidth
+              className="sm:w-auto"
+            >
               {settingUp2fa ? t.common.processing : t.settings.twoFactorSetup}
             </Button>
           )}
@@ -282,9 +293,9 @@ export function SecuritySettings() {
               <img
                 src={setupQr}
                 alt={t.settings.twoFactorQrAlt}
-                className="h-44 w-44 rounded-lg border border-[var(--border)] bg-white p-2"
+                className="mx-auto h-auto w-full max-w-[11rem] rounded-lg border border-[var(--border)] bg-white p-2 sm:mx-0 sm:h-44 sm:w-44 sm:max-w-none"
               />
-              <p className="break-all text-xs text-[var(--muted-foreground)]">
+              <p className="break-all text-xs leading-5 text-[var(--muted-foreground)]">
                 {t.settings.twoFactorManualSecret}: {setupSecret}
               </p>
               <Input
@@ -294,14 +305,14 @@ export function SecuritySettings() {
                 required
                 autoComplete="one-time-code"
               />
-              <Button type="submit" disabled={enabling2fa}>
+              <Button type="submit" fullWidth className="sm:w-auto" disabled={enabling2fa}>
                 {enabling2fa ? t.common.processing : t.settings.twoFactorEnable}
               </Button>
             </form>
           )}
 
           {backupCodes && (
-            <div className="rounded-[var(--radius-md)] border border-[var(--warning-border)] bg-[var(--warning-muted)] p-4">
+            <div className="rounded-[var(--radius-md)] border border-[var(--warning-border)] bg-[var(--warning-muted)] p-3 sm:p-4">
               <p className="text-sm font-medium text-[var(--warning)]">
                 {t.settings.twoFactorBackupTitle}
               </p>
@@ -310,14 +321,21 @@ export function SecuritySettings() {
               </p>
               <ul className="mt-3 grid grid-cols-2 gap-2 font-mono text-sm">
                 {backupCodes.map((code) => (
-                  <li key={code}>{code}</li>
+                  <li
+                    key={code}
+                    className="rounded-lg border border-[var(--border)]/60 bg-[var(--background)]/40 px-2 py-2 text-center text-xs break-all sm:px-3 sm:text-sm"
+                  >
+                    {code}
+                  </li>
                 ))}
               </ul>
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
+                  fullWidth
+                  className="sm:w-auto"
                   onClick={() => void handleCopyBackupCodes()}
                 >
                   {t.settings.twoFactorBackupCopy}
@@ -326,6 +344,8 @@ export function SecuritySettings() {
                   type="button"
                   size="sm"
                   variant="outline"
+                  fullWidth
+                  className="sm:w-auto"
                   onClick={handleDownloadBackupCodes}
                 >
                   {t.settings.twoFactorBackupDownload}
@@ -333,6 +353,8 @@ export function SecuritySettings() {
                 <Button
                   type="button"
                   size="sm"
+                  fullWidth
+                  className="sm:w-auto"
                   onClick={() => setBackupCodes(null)}
                 >
                   {t.settings.twoFactorBackupDismiss}
@@ -349,6 +371,7 @@ export function SecuritySettings() {
                 value={disablePassword}
                 onChange={(event) => setDisablePassword(event.target.value)}
                 required
+                showPasswordToggle
               />
               <Input
                 label={t.settings.twoFactorCode}
@@ -357,7 +380,13 @@ export function SecuritySettings() {
                 required
                 hint={t.settings.twoFactorDisableHint}
               />
-              <Button type="submit" variant="danger" disabled={disabling2fa}>
+              <Button
+                type="submit"
+                variant="danger"
+                fullWidth
+                className="sm:w-auto"
+                disabled={disabling2fa}
+              >
                 {disabling2fa ? t.common.processing : t.settings.twoFactorDisable}
               </Button>
             </form>
@@ -365,15 +394,19 @@ export function SecuritySettings() {
         </div>
       </Card>
 
-      <Card className="lg:col-span-2">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <CardHeader
-            title={t.settings.sessionsTitle}
-            description={t.settings.sessionsDescription}
-          />
+      <Card className="overflow-hidden lg:col-span-2">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-heading">{t.settings.sessionsTitle}</h2>
+            <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+              {t.settings.sessionsDescription}
+            </p>
+          </div>
           <Button
             type="button"
             variant="secondary"
+            fullWidth
+            className="shrink-0 sm:w-auto"
             onClick={() => void handleRevokeOthers()}
             disabled={!sessionsQuery.data?.some((session) => !session.current)}
           >
@@ -404,32 +437,38 @@ export function SecuritySettings() {
             {sessionsQuery.data.map((session) => (
               <li
                 key={session.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-4"
+                className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-raised)] p-3 sm:p-4"
               >
-                <div className="flex min-w-0 items-start gap-3">
-                  <MonitorSmartphone className="mt-0.5 h-5 w-5 text-[var(--accent)]" />
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="truncate text-sm font-medium">
-                        {session.userAgent || t.settings.sessionUnknownDevice}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <MonitorSmartphone className="mt-0.5 h-5 w-5 shrink-0 text-[var(--accent)]" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="break-words text-sm font-medium [overflow-wrap:anywhere]">
+                          {session.userAgent || t.settings.sessionUnknownDevice}
+                        </p>
+                        {session.current && (
+                          <Badge variant="accent">
+                            {t.settings.sessionCurrent}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+                        {t.settings.sessionCreated}:{' '}
+                        {formatDate(session.createdAt, locale)}
                       </p>
-                      {session.current && (
-                        <Badge variant="accent">{t.settings.sessionCurrent}</Badge>
-                      )}
                     </div>
-                    <p className="mt-1 text-xs text-[var(--muted-foreground)]">
-                      {t.settings.sessionCreated}:{' '}
-                      {formatDate(session.createdAt, locale)}
-                    </p>
                   </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    fullWidth
+                    className="sm:w-auto"
+                    onClick={() => void handleRevokeSession(session)}
+                  >
+                    {t.settings.sessionRevoke}
+                  </Button>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => void handleRevokeSession(session)}
-                >
-                  {t.settings.sessionRevoke}
-                </Button>
               </li>
             ))}
             {sessionsQuery.data.length === 0 && (
@@ -441,9 +480,9 @@ export function SecuritySettings() {
         )}
 
         {!user && userQuery.isError && (
-          <div className="mt-6 flex items-center gap-2 text-sm text-[var(--muted-foreground)]">
-            <KeyRound className="h-4 w-4" />
-            {t.settings.profileLoadFailed}
+          <div className="mt-6 flex items-start gap-2 text-sm text-[var(--muted-foreground)]">
+            <KeyRound className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{t.settings.profileLoadFailed}</span>
           </div>
         )}
       </Card>

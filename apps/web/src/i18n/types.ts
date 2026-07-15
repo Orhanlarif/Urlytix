@@ -52,6 +52,20 @@ export type Translation = {
     pageNotFound: string;
     pageNotFoundDescription: string;
     goHome: string;
+    showPassword: string;
+    hidePassword: string;
+  };
+  dateTimePicker: {
+    placeholder: string;
+    clear: string;
+    apply: string;
+    hour: string;
+    minute: string;
+    previousMonth: string;
+    nextMonth: string;
+    preset1d: string;
+    preset7d: string;
+    preset30d: string;
   };
   nav: {
     dashboard: string;
@@ -269,6 +283,7 @@ export type Translation = {
     ctaStart: string;
     ctaLogin: string;
     ctaRegister: string;
+    ctaRegisterShort: string;
     statFree: string;
     statAnalytics: string;
     statQr: string;
@@ -298,6 +313,32 @@ export type Translation = {
     previewClicks: string;
     previewToday: string;
     previewLast14: string;
+    trustLabel: string;
+    trust1: string;
+    trust2: string;
+    trust3: string;
+    trust4: string;
+    howTitle: string;
+    howSubtitle: string;
+    howStep1Title: string;
+    howStep1Desc: string;
+    howStep2Title: string;
+    howStep2Desc: string;
+    howStep3Title: string;
+    howStep3Desc: string;
+    showcaseTitle: string;
+    showcaseSubtitle: string;
+    showcaseDevices: string;
+    showcaseReferrers: string;
+    showcaseDesktop: string;
+    showcaseMobile: string;
+    showcaseTablet: string;
+    showcaseDirect: string;
+    showcaseSocial: string;
+    showcaseSearch: string;
+    showcaseTotalClicks: string;
+    showcaseTrendUp: string;
+    showcasePeakDay: string;
   };
   auth: {
     loginTitle: string;
