@@ -25,7 +25,7 @@ export function Logo({
   const { t } = useLanguage();
   const markHeight = size === 'sm' ? 28 : 36;
   const markWidth = Math.round((MARK_WIDTH / MARK_HEIGHT) * markHeight);
-  const textSize = size === 'sm' ? 'text-xl sm:text-2xl' : 'text-3xl';
+  const textSize = size === 'sm' ? 'text-xl sm:text-2xl' : 'text-xl';
 
   const content = (
     <div className={cn('flex items-center gap-2.5', className)}>
@@ -45,7 +45,9 @@ export function Logo({
       <div className="min-w-0 leading-tight">
         <p className={cn('font-bold tracking-tight', textSize)}>Urlytix</p>
         {showTagline && (
-          <p className="text-xs text-[var(--muted-foreground)]">{t.nav.tagline}</p>
+          <p className="mt-0.5 text-[11px] leading-snug text-[var(--muted-foreground)]">
+            {t.nav.tagline}
+          </p>
         )}
       </div>
     </div>
