@@ -1,0 +1,52 @@
+# Render Blueprint — Urlytix API
+# Dashboard: New → Blueprint → bu repo
+# Free plan; env secret'ları Render UI'dan doldurulur.
+
+services:
+  - type: web
+    name: urlytix-api
+    runtime: node
+    plan: free
+    region: frankfurt
+    rootDir: .
+    buildCommand: >-
+      corepack enable &&
+      pnpm install --frozen-lockfile &&
+      pnpm --filter api exec prisma generate &&
+      pnpm --filter api exec prisma migrate deploy &&
+      pnpm --filter api build
+    startCommand: pnpm --filter api start:prod
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: '4000'
+      - key: BILLING_ENABLED
+        value: 'false'
+      - key: CORS_ORIGINS
+        value: https://urlytix.com
+      - key: APP_WEB_URL
+        value: https://urlytix.com
+      - key: SHORT_URL_BASE
+        value: https://api.urlytix.com
+      - key: COOKIE_DOMAIN
+        value: .urlytix.com
+      - key: SMTP_PORT
+        value: '587'
+      - key: SMTP_SECURE
+        value: 'false'
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
