@@ -56,6 +56,12 @@ jobs:
             exit 1
           fi
 
+      - name: Normalize image name to lowercase
+        run: |
+          # GHCR requires lowercase repository names (github.repository can contain
+          # uppercase owner/repo segments).
+          echo "IMAGE_NAME=${REGISTRY}/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')-${{ matrix.suffix }}" >> "$GITHUB_ENV"
+
       - name: Checkout selected revision
         uses: actions/checkout@v4
         with:
@@ -78,7 +84,7 @@ jobs:
           file: ${{ matrix.dockerfile }}
           target: ${{ matrix.target }}
           push: true
-          tags: ${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.suffix }}:${{ env.IMAGE_TAG }}
+          tags: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
           build-args: |
             NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
           cache-from: type=gha,scope=${{ matrix.name }}
@@ -109,10 +115,11 @@ jobs:
           DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
           REPOSITORY: ${{ github.repository }}
         run: |
+          repository="$(echo "$REPOSITORY" | tr '[:upper:]' '[:lower:]')"
           payload="$(jq -n \
             --arg environment "$DEPLOY_ENVIRONMENT" \
             --arg imageTag "$IMAGE_TAG" \
-            --arg repository "$REPOSITORY" \
+            --arg repository "$repository" \
             '{environment: $environment, imageTag: $imageTag, repository: $repository}')"
           curl --fail-with-body --silent --show-error \
             --retry 3 --retry-all-errors \
