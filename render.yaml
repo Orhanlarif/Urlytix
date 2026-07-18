@@ -22,8 +22,7 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: '4000'
+      # Do not set PORT — Render injects it; hardcoding 4000 breaks the proxy.
       - key: BILLING_ENABLED
         value: 'false'
       - key: CORS_ORIGINS
