@@ -41,6 +41,8 @@ async function bootstrap() {
           baseUri: ["'none'"],
         },
       },
+      // API is called cross-origin from the web app; same-origin CORP blocks fetch.
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
       crossOriginEmbedderPolicy: false,
       referrerPolicy: { policy: 'no-referrer' },
     }),

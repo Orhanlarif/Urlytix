@@ -26,7 +26,7 @@ services:
       - key: BILLING_ENABLED
         value: 'false'
       - key: CORS_ORIGINS
-        value: https://urlytix.com
+        value: https://urlytix.com,https://www.urlytix.com
       - key: APP_WEB_URL
         value: https://urlytix.com
       - key: SHORT_URL_BASE
