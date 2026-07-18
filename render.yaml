@@ -10,9 +10,10 @@ services:
     region: frankfurt
     rootDir: .
     # Avoid `corepack enable` on Render — it tries to write /usr/bin/pnpm (EROFS).
+    # --prod=false: prisma + @nestjs/cli live in api devDependencies; needed at build.
     buildCommand: >-
       npm install -g pnpm@9.15.9 &&
-      pnpm install --frozen-lockfile &&
+      pnpm install --frozen-lockfile --prod=false &&
       pnpm --filter api exec prisma generate &&
       pnpm --filter api exec prisma migrate deploy &&
       pnpm --filter api build
