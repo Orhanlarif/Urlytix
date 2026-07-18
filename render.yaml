@@ -30,7 +30,7 @@ services:
       - key: APP_WEB_URL
         value: https://urlytix.com
       - key: SHORT_URL_BASE
-        value: https://api.urlytix.com
+        value: https://go.urlytix.com
       - key: COOKIE_DOMAIN
         value: .urlytix.com
       - key: SMTP_PORT
