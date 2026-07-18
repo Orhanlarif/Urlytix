@@ -27,7 +27,7 @@ export class MailService implements OnModuleInit {
     }
   }
 
-  async onModuleInit() {
+  onModuleInit() {
     if (!this.transporter) {
       this.logger.warn(
         'SMTP is not configured (SMTP_HOST empty). Password-reset emails will NOT be delivered.',

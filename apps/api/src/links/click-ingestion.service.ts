@@ -65,7 +65,8 @@ export class ClickIngestionService
       tls: parsed.protocol === 'rediss:' ? {} : undefined,
       maxRetriesPerRequest: null,
       // Avoid endless WRONGPASS retry storms that delay deploy health checks.
-      retryStrategy: (times: number) => (times > 3 ? null : Math.min(times * 200, 1000)),
+      retryStrategy: (times: number) =>
+        times > 3 ? null : Math.min(times * 200, 1000),
     };
     this.queue = new Queue<ClickIngestionPayload, void, 'click'>(
       'click-ingestion',
