@@ -78,7 +78,10 @@ export class AppConfigService implements OnModuleInit {
   }
 
   get port(): number {
-    return Number(this.configService.get<string>('PORT') ?? 4000);
+    // Empty PORT (`??` won't catch "") would make Number("")=0 → random port,
+    // which breaks Render's health check. Fall back to 4000 on any invalid value.
+    const parsed = Number(this.getTrimmed('PORT'));
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : 4000;
   }
 
   get corsOrigins(): string[] {
