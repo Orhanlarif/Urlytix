@@ -32,7 +32,10 @@ export class AppConfigService implements OnModuleInit {
       this.validateProductionJwtSecret();
       this.validateUrl('DATABASE_URL', ['postgres:', 'postgresql:']);
       this.validateUrl('SHORT_URL_BASE', ['https:']);
-      this.validateUrl('REDIS_URL', ['redis:', 'rediss:']);
+      this.validateAbsoluteUrl('REDIS_URL', this.redisUrl ?? '', [
+        'redis:',
+        'rediss:',
+      ]);
       this.validateUrl('APP_WEB_URL', ['https:']);
       this.validateSmtpPort();
 
@@ -142,7 +145,10 @@ export class AppConfigService implements OnModuleInit {
   }
 
   get redisUrl(): string | undefined {
-    return this.configService.get<string>('REDIS_URL') || undefined;
+    const raw = this.configService.get<string>('REDIS_URL')?.trim();
+    if (!raw) return undefined;
+    // Strip accidental wrapping quotes from dashboard copy/paste.
+    return raw.replace(/^['"]|['"]$/g, '');
   }
 
   get billingEnabled(): boolean {

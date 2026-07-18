@@ -42,15 +42,18 @@ export class MailService implements OnModuleInit {
       return;
     }
 
-    try {
-      await this.transporter.verify();
-      this.logger.log(
-        `SMTP ready (${this.appConfig.smtpHost}:${this.appConfig.smtpPort})`,
-      );
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.logger.error(`SMTP verification failed: ${message}`);
-    }
+    // Do not await — SMTP verify can hang on free hosts and delay /health.
+    void this.transporter
+      .verify()
+      .then(() => {
+        this.logger.log(
+          `SMTP ready (${this.appConfig.smtpHost}:${this.appConfig.smtpPort})`,
+        );
+      })
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.error(`SMTP verification failed: ${message}`);
+      });
   }
 
   async sendPasswordReset(input: {

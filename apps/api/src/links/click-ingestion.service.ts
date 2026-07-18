@@ -55,11 +55,17 @@ export class ClickIngestionService
     const connection = {
       host: parsed.hostname,
       port: Number(parsed.port || 6379),
-      username: parsed.username || undefined,
-      password: parsed.password || undefined,
+      username: parsed.username
+        ? decodeURIComponent(parsed.username)
+        : undefined,
+      password: parsed.password
+        ? decodeURIComponent(parsed.password)
+        : undefined,
       db: parsed.pathname.length > 1 ? Number(parsed.pathname.slice(1)) : 0,
       tls: parsed.protocol === 'rediss:' ? {} : undefined,
       maxRetriesPerRequest: null,
+      // Avoid endless WRONGPASS retry storms that delay deploy health checks.
+      retryStrategy: (times: number) => (times > 3 ? null : Math.min(times * 200, 1000)),
     };
     this.queue = new Queue<ClickIngestionPayload, void, 'click'>(
       'click-ingestion',
@@ -84,7 +90,10 @@ export class ClickIngestionService
       },
     );
     this.worker.on('error', (error) => {
-      this.logger.error('Click worker hatası', error.stack);
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Click worker hatası: ${message}. REDIS_URL kullanıcı/şifresini Upstash Redis URL ile yeniden kontrol et.`,
+      );
     });
   }
 
