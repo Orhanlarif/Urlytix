@@ -43,7 +43,7 @@ const LandingFooter = dynamic(
 export default function HomePage() {
   return (
     <main className="relative min-h-screen overflow-x-hidden bg-[var(--background)] text-[var(--foreground)]">
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden lg:fixed">
         <div className="absolute left-1/2 top-0 h-[32rem] w-[32rem] -translate-x-1/2 rounded-full bg-[var(--accent)]/10 blur-3xl" />
         <div className="absolute bottom-1/4 right-0 h-[28rem] w-[28rem] rounded-full bg-blue-500/10 blur-3xl" />
         <div className="absolute bottom-0 left-1/4 h-72 w-72 rounded-full bg-[var(--accent)]/5 blur-3xl" />

@@ -166,6 +166,14 @@ function getDesktopServerSnapshot() {
   return false;
 }
 
+export function useIsDesktop() {
+  return useSyncExternalStore(
+    subscribeDesktop,
+    getDesktopSnapshot,
+    getDesktopServerSnapshot,
+  );
+}
+
 export function Floating({
   children,
   className,
@@ -174,11 +182,7 @@ export function Floating({
   className?: string;
 }) {
   const reduceMotion = useReducedMotion();
-  const isDesktop = useSyncExternalStore(
-    subscribeDesktop,
-    getDesktopSnapshot,
-    getDesktopServerSnapshot,
-  );
+  const isDesktop = useIsDesktop();
 
   if (reduceMotion) {
     return <div className={className}>{children}</div>;
@@ -196,16 +200,14 @@ export function Floating({
               rotate: [0, -0.7, 0.35, -0.5, 0],
             }
           : {
-              y: [0, -6, -2, -7, 0],
-              x: [0, 1.5, -1, 0.5, 0],
-              rotate: [0, -0.25, 0.15, -0.2, 0],
+              y: [0, -4, 0],
             }
       }
       transition={{
         duration: isDesktop ? 9 : 11,
         repeat: Infinity,
         ease: 'easeInOut',
-        times: [0, 0.28, 0.52, 0.78, 1],
+        times: isDesktop ? [0, 0.28, 0.52, 0.78, 1] : [0, 0.5, 1],
       }}
     >
       {children}

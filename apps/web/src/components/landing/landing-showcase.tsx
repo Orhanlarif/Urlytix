@@ -4,7 +4,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { TrendingUp } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { useLanguage } from '@/i18n/language-provider';
-import { Reveal, fadeUp, viewportOnce } from './motion';
+import { Reveal, fadeUp, useIsDesktop, viewportOnce } from './motion';
 
 /** 14 daily click values — rising trend toward the end */
 const TREND = [38, 44, 41, 52, 48, 61, 58, 72, 68, 81, 76, 90, 86, 98];
@@ -15,6 +15,7 @@ const PEAK_CLICKS = '312';
 export function LandingShowcase() {
   const { t } = useLanguage();
   const reduceMotion = useReducedMotion();
+  const isDesktop = useIsDesktop();
 
   const devices = [
     { label: t.landing.showcaseDesktop, value: 52 },
@@ -120,6 +121,29 @@ export function LandingShowcase() {
                         );
                       }
 
+                      if (!isDesktop) {
+                        return (
+                          <div key={index} className="flex h-full flex-1 items-end">
+                            <motion.div
+                              className={`w-full origin-bottom rounded-t-md ${
+                                isPeak
+                                  ? 'bg-gradient-to-t from-[var(--accent-active)] via-[var(--accent)] to-[var(--accent-hover)] shadow-[0_0_16px_-4px_var(--accent-glow)]'
+                                  : 'bg-gradient-to-t from-[var(--accent-active)]/80 to-[var(--accent-hover)]/90'
+                              }`}
+                              initial={{ opacity: 0.35, scaleY: 0 }}
+                              whileInView={{ opacity: 1, scaleY: 1 }}
+                              viewport={viewportOnce}
+                              transition={{
+                                duration: 0.5,
+                                delay: 0.06 + index * 0.025,
+                                ease: [0.16, 1, 0.3, 1],
+                              }}
+                              style={{ height: `${height}%` }}
+                            />
+                          </div>
+                        );
+                      }
+
                       return (
                         <motion.div
                           key={index}
@@ -166,11 +190,13 @@ export function LandingShowcase() {
                   title={t.landing.showcaseDevices}
                   rows={devices}
                   reduceMotion={!!reduceMotion}
+                  isDesktop={isDesktop}
                 />
                 <BreakdownCard
                   title={t.landing.showcaseReferrers}
                   rows={referrers}
                   reduceMotion={!!reduceMotion}
+                  isDesktop={isDesktop}
                 />
               </div>
             </div>
@@ -185,10 +211,12 @@ function BreakdownCard({
   title,
   rows,
   reduceMotion,
+  isDesktop,
 }: {
   title: string;
   rows: { label: string; value: number }[];
   reduceMotion: boolean;
+  isDesktop: boolean;
 }) {
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-4">
@@ -204,6 +232,19 @@ function BreakdownCard({
               {reduceMotion ? (
                 <div
                   className="h-full rounded-full bg-[var(--accent)]"
+                  style={{ width: `${row.value}%` }}
+                />
+              ) : !isDesktop ? (
+                <motion.div
+                  className="h-full origin-left rounded-full bg-[var(--accent)]"
+                  initial={{ scaleX: 0 }}
+                  whileInView={{ scaleX: 1 }}
+                  viewport={viewportOnce}
+                  transition={{
+                    duration: 0.6,
+                    delay: 0.15 + index * 0.06,
+                    ease: [0.16, 1, 0.3, 1],
+                  }}
                   style={{ width: `${row.value}%` }}
                 />
               ) : (
