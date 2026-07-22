@@ -161,6 +161,21 @@ export class AppConfigService implements OnModuleInit {
     );
   }
 
+  /** Comma-separated emails promoted to SUPER_ADMIN on API boot. */
+  get platformAdminEmails(): string[] {
+    const raw = this.getTrimmed('PLATFORM_ADMIN_EMAILS');
+    if (!raw) return [];
+
+    return [
+      ...new Set(
+        raw
+          .split(',')
+          .map((email) => email.trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    ];
+  }
+
   /**
    * Optional parent Domain for auth/visitor cookies when web and API share a
    * registrable domain but use distinct hostnames (e.g. `.example.com`).

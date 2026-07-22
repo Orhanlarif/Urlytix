@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   BarChart3,
   Building2,
@@ -10,6 +10,7 @@ import {
   LogOut,
   Plus,
   Settings,
+  Shield,
   UserCircle,
 } from 'lucide-react';
 import { ReactNode } from 'react';
@@ -30,6 +31,7 @@ type AppShellProps = {
 export function AppShell({ children }: AppShellProps) {
   const { t } = useLanguage();
   const pathname = usePathname();
+  const router = useRouter();
   const { user } = useCurrentUser();
 
   const navItems = [
@@ -111,6 +113,20 @@ export function AppShell({ children }: AppShellProps) {
           </nav>
 
           <div className="space-y-3 border-t border-[var(--border)] p-4">
+            {user?.platformRole === 'SUPER_ADMIN' && (
+              <Link
+                href="/admin"
+                className={cn(
+                  'flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition',
+                  pathname.startsWith('/admin')
+                    ? 'border border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent)]'
+                    : 'text-[var(--muted-foreground)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]',
+                )}
+              >
+                <Shield className="h-4 w-4" />
+                {t.nav.admin}
+              </Link>
+            )}
             <div className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-raised)]/60 p-3">
               <div className="grid h-9 w-9 place-items-center rounded-lg bg-[var(--accent-soft)] text-[var(--accent)]">
                 <UserCircle className="h-5 w-5" />
@@ -159,6 +175,15 @@ export function AppShell({ children }: AppShellProps) {
                     </p>
                   </div>
                   <div className="my-1 border-t border-[var(--border)]" />
+                  {user?.platformRole === 'SUPER_ADMIN' && (
+                    <>
+                      <DropdownItem onClick={() => router.push('/admin')}>
+                        <Shield className="h-4 w-4" />
+                        {t.nav.admin}
+                      </DropdownItem>
+                      <div className="my-1 border-t border-[var(--border)]" />
+                    </>
+                  )}
                   <div className="flex justify-center px-1 py-1">
                     <LanguageToggle size="sm" />
                   </div>

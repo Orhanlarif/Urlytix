@@ -8,6 +8,7 @@ const protectedPrefixes = [
   '/analytics',
   '/workspace',
   '/settings',
+  '/admin',
 ];
 const authPaths = ['/login', '/register'];
 
@@ -42,6 +43,7 @@ export const config = {
     '/analytics/:path*',
     '/workspace/:path*',
     '/settings/:path*',
+    '/admin/:path*',
     '/login',
     '/register',
   ],

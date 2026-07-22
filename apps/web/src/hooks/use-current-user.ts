@@ -10,6 +10,7 @@ const protectedPrefixes = [
   '/analytics',
   '/workspace',
   '/settings',
+  '/admin',
 ];
 
 export const CURRENT_USER_QUERY_KEY = ['me'] as const;

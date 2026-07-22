@@ -117,6 +117,10 @@ export class AuthService {
       throw new UnauthorizedException('Email veya şifre hatalı.');
     }
 
+    if (user.disabledAt) {
+      throw new UnauthorizedException('Bu hesap askıya alınmış.');
+    }
+
     if (user.totpEnabledAt && user.totpSecret) {
       const twoFactorToken = await this.jwtService.signAsync(
         {
@@ -167,6 +171,10 @@ export class AuthService {
       throw new BadRequestException('İki adımlı doğrulama etkin değil.');
     }
 
+    if (user.disabledAt) {
+      throw new UnauthorizedException('Bu hesap askıya alınmış.');
+    }
+
     const valid = await this.verifyTotpOrBackupCode(
       user.id,
       user.totpSecret,
@@ -195,6 +203,8 @@ export class AuthService {
         email: true,
         timezone: true,
         locale: true,
+        platformRole: true,
+        disabledAt: true,
         createdAt: true,
         totpEnabledAt: true,
       },
@@ -204,9 +214,28 @@ export class AuthService {
       throw new NotFoundException('Kullanıcı bulunamadı.');
     }
 
-    const { totpEnabledAt, ...rest } = user;
+    if (user.disabledAt) {
+      throw new UnauthorizedException('Bu hesap askıya alınmış.');
+    }
+
+    let platformRole = user.platformRole;
+    if (
+      platformRole !== 'SUPER_ADMIN' &&
+      this.appConfig.platformAdminEmails.includes(user.email.toLowerCase())
+    ) {
+      const updated = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { platformRole: 'SUPER_ADMIN' },
+        select: { platformRole: true },
+      });
+      platformRole = updated.platformRole;
+    }
+
+    const { totpEnabledAt, disabledAt: _disabledAt, platformRole: _role, ...rest } =
+      user;
     return {
       ...rest,
+      platformRole,
       totpEnabled: Boolean(totpEnabledAt),
     };
   }
@@ -233,6 +262,10 @@ export class AuthService {
       throw new UnauthorizedException(
         'Refresh token geçersiz veya süresi dolmuş.',
       );
+    }
+
+    if (session.user.disabledAt) {
+      throw new UnauthorizedException('Bu hesap askıya alınmış.');
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -291,6 +324,7 @@ export class AuthService {
         email: true,
         timezone: true,
         locale: true,
+        platformRole: true,
         createdAt: true,
         updatedAt: true,
         totpEnabledAt: true,
@@ -643,6 +677,7 @@ export class AuthService {
     email: string;
     timezone: string;
     locale: string;
+    platformRole?: 'USER' | 'SUPER_ADMIN';
     createdAt: Date;
   }) {
     return {
@@ -651,6 +686,7 @@ export class AuthService {
       email: user.email,
       timezone: user.timezone,
       locale: user.locale,
+      platformRole: user.platformRole ?? 'USER',
       createdAt: user.createdAt,
     };
   }

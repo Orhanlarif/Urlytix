@@ -33,7 +33,11 @@ REDIS_URL=rediss://cache-host:6379
 CORS_ORIGINS=https://yourdomain.com
 SHORT_URL_BASE=https://api.yourdomain.com
 BILLING_ENABLED=false
+PLATFORM_ADMIN_EMAILS=you@example.com
 ```
+
+`PLATFORM_ADMIN_EMAILS` içindeki hesaplar API boot / `/auth/me` sırasında
+`SUPER_ADMIN` yapılır; production admin paneli (`/admin`) için gereklidir.
 
 Kısa linkler `https://api.yourdomain.com/abc1234` biçiminde üretilir (`/api/r` yolu public URL'de görünmez).
 

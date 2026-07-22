@@ -5,6 +5,7 @@ export type DeviceType =
   | 'TABLET'
   | 'BOT'
   | 'UNKNOWN';
+export type PlatformRole = 'USER' | 'SUPER_ADMIN';
 
 export interface UserSummary {
   id: string;
@@ -13,6 +14,7 @@ export interface UserSummary {
   timezone?: string;
   locale?: string;
   totpEnabled?: boolean;
+  platformRole?: PlatformRole;
   createdAt: string;
 }
 

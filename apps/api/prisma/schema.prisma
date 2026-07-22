@@ -28,6 +28,11 @@ enum WorkspaceRole {
   VIEWER
 }
 
+enum PlatformRole {
+  USER
+  SUPER_ADMIN
+}
+
 enum SubscriptionStatus {
   TRIALING
   ACTIVE
@@ -45,16 +50,18 @@ enum AuditAction {
 }
 
 model User {
-  id            String    @id @default(uuid())
+  id            String       @id @default(uuid())
   name          String?
-  email         String    @unique
+  email         String       @unique
   passwordHash  String
-  timezone      String    @default("UTC")
-  locale        String    @default("en")
+  timezone      String       @default("UTC")
+  locale        String       @default("en")
+  platformRole  PlatformRole @default(USER)
+  disabledAt    DateTime?
   totpSecret    String?
   totpEnabledAt DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
   links               Link[]
   refreshSessions     RefreshSession[]
@@ -63,6 +70,9 @@ model User {
   auditLogs           AuditLog[]
   passwordResetTokens PasswordResetToken[]
   totpBackupCodes     TotpBackupCode[]
+
+  @@index([platformRole])
+  @@index([disabledAt])
 }
 
 model PasswordResetToken {

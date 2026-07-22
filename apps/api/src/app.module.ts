@@ -2,6 +2,7 @@ import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { AdminModule } from './admin/admin.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { ApiKeysModule } from './api-keys/api-keys.module';
 import { AppController } from './app.controller';
@@ -32,6 +33,7 @@ import { WorkspacesModule } from './workspaces/workspaces.module';
     AppConfigModule,
     PrismaModule,
     AuthModule,
+    AdminModule,
     LinksModule,
     AnalyticsModule,
     WorkspacesModule,

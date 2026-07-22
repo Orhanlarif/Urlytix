@@ -51,3 +51,5 @@ services:
         sync: false
       - key: SMTP_FROM
         sync: false
+      - key: PLATFORM_ADMIN_EMAILS
+        sync: false

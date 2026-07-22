@@ -85,6 +85,12 @@ const enByTr: Record<string, string> = {
   'Bu link şifre korumalı.': 'This link is password protected.',
   'Oturum süren doldu. Lütfen tekrar giriş yap.':
     'Your session expired. Please sign in again.',
+  'Platform admin yetkin yok.': 'You do not have platform admin access.',
+  'Bu hesap askıya alınmış.': 'This account has been suspended.',
+  'Güncellenecek alan belirtilmedi.': 'No fields were provided to update.',
+  'Kendi hesabını askıya alamazsın.': 'You cannot suspend your own account.',
+  'Platform admin hesabı askıya alınamaz.':
+    'Platform admin accounts cannot be suspended.',
 };
 
 export function translateMessage(message: string, locale: AppLocale): string {

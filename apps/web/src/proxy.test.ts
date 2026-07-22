@@ -35,4 +35,13 @@ describe('auth proxy', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('location')).toBeNull();
   });
+
+  it('protects admin routes', () => {
+    const response = proxy(new NextRequest('http://localhost:3000/admin'));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe(
+      'http://localhost:3000/login?redirect=%2Fadmin',
+    );
+  });
 });

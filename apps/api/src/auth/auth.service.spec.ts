@@ -63,6 +63,7 @@ describe('AuthService', () => {
   const appConfig = {
     appWebUrl: 'http://localhost:3000',
     totpEncryptionKey: 'test-encryption-key-at-least-32-chars',
+    platformAdminEmails: [] as string[],
   };
 
   beforeEach(async () => {
@@ -229,6 +230,8 @@ describe('AuthService', () => {
         email: 'test@example.com',
         timezone: 'UTC',
         locale: 'en',
+        platformRole: 'USER',
+        disabledAt: null,
         totpEnabledAt: null,
         createdAt: new Date(),
       });
@@ -237,6 +240,7 @@ describe('AuthService', () => {
 
       expect(result.email).toBe('test@example.com');
       expect(result.totpEnabled).toBe(false);
+      expect(result.platformRole).toBe('USER');
     });
 
     it('throws when user does not exist', async () => {
